@@ -1,0 +1,27 @@
+# Experiment sweep settings for the FL + LoRA + DP benchmark.
+# Referenced by src/federated/server.py (loading not yet wired in -- TODO).
+
+federated:
+  num_clients: 3
+  num_rounds: 5
+  strategy: fedavg
+
+lora:
+  ranks: [2, 4, 8, 16]        # r values to sweep
+  lora_alpha: 16
+  lora_dropout: 0.1
+
+privacy:
+  epsilons: [1, 3, 8, null]   # null = no DP, baseline
+  target_delta: 1.0e-5
+  max_grad_norm: 1.0          # clipping threshold C
+
+data:
+  dirichlet_alphas: [0.1, 1.0, 100.0]  # low = highly skewed, high = ~IID
+  num_labels: 2
+
+training:
+  local_epochs: 1
+  batch_size: 16
+  learning_rate: 5.0e-5
+  seed: 42

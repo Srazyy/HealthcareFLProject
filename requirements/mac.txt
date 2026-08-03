@@ -1,0 +1,10 @@
+# macOS: install via `setup/setup_mac.sh`, which runs:
+#   pip install torch torchvision torchaudio
+# The default PyPI build of torch already includes MPS (Apple Silicon GPU)
+# support on macOS — no special index URL needed here, unlike Windows/Linux CUDA.
+#
+# This file is a placeholder so the OS split is explicit; actual install
+# happens in setup_mac.sh so we can branch on Apple Silicon vs Intel.
+torch
+torchvision
+torchaudio

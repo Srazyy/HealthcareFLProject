@@ -1,0 +1,6 @@
+# Linux: install via `setup/setup_linux.sh`, which detects an NVIDIA GPU via
+# `nvidia-smi` and installs the matching torch build from
+# https://download.pytorch.org/whl/{cu121|cpu}
+torch
+torchvision
+torchaudio

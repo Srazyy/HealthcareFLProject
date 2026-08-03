@@ -1,0 +1,9 @@
+# Windows: install via `setup\setup_windows.ps1`, which detects whether an
+# NVIDIA GPU + CUDA is available and installs the matching torch build from
+# https://download.pytorch.org/whl/{cu121|cpu}
+#
+# This file is a placeholder so the OS split is explicit; actual install
+# command (with --index-url) is chosen at runtime in setup_windows.ps1.
+torch
+torchvision
+torchaudio
