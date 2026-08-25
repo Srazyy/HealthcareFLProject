@@ -1,46 +1,44 @@
-"""
-Flower server: spawns the 3-node simulation and aggregates LoRA updates.
-
-Owner: Track B
-
-Run with:
-    python -m src.federated.server --config configs/config.yaml
-
-TODO:
-- Read sweep params (epsilon, r, alpha, num_rounds) from configs/config.yaml.
-- Implement/choose an aggregation strategy (start with FedAvg).
-- Log per-round F1 to results/ for building the benchmark table.
-"""
-
-import argparse
-
 import flwr as fl
+from typing import List, Tuple
+from flwr.common import Metrics
 
-from src.federated.client import make_client_fn
+def weighted_average(metrics: List[Tuple[int, Metrics]]) -> Metrics:
+    """
+    Aggregates the evaluation metrics from all hospitals.
+    If Hospital A has 1000 patients and Hospital B has 100, 
+    Hospital A's accuracy carries more weight in the final calculation.
+    """
+    # Multiply each hospital's accuracy by its number of data samples
+    accuracies = [num_examples * m["accuracy"] for num_examples, m in metrics]
+    examples = [num_examples for num_examples, _ in metrics]
+    
+    # Return the weighted average
+    return {"accuracy": sum(accuracies) / sum(examples)}
 
 
-def main(num_clients: int = 3, num_rounds: int = 5, r: int = 8):
+def run_simulation(client_fn, num_clients=3, num_rounds=5):
+    """
+    Launches the central server and coordinates the simulation.
+    """
+    print(f"Starting Federated Learning simulation with {num_clients} hospitals...")
+
+    # 1. Define the strategy (FedAvg is the industry standard)
     strategy = fl.server.strategy.FedAvg(
-        min_fit_clients=num_clients,
-        min_evaluate_clients=num_clients,
+        fraction_fit=1.0,                  # Train on 100% of available clients each round
+        fraction_evaluate=1.0,             # Evaluate on 100% of clients each round
+        min_fit_clients=num_clients,       # Wait for all hospitals to be ready before training
+        min_evaluate_clients=num_clients,  # Wait for all hospitals to be ready before evaluating
         min_available_clients=num_clients,
+        evaluate_metrics_aggregation_fn=weighted_average, # Use our custom math above
     )
 
-    fl.simulation.start_simulation(
-        client_fn=make_client_fn(r=r),
-        num_clients=num_clients,
-        config=fl.server.ServerConfig(num_rounds=num_rounds),
-        strategy=strategy,
+    # 2. Start the simulation
+    history = fl.simulation.start_simulation(
+        client_fn=client_fn,               # A factory function that spawns your HealthcareClient
+        num_clients=num_clients,           # Total simulated hospitals
+        config=fl.server.ServerConfig(num_rounds=num_rounds), # How many times they sync
+        strategy=strategy,                 # The FedAvg strategy defined above
+        client_resources={"num_cpus": 2}   # Allocate CPU cores per simulated hospital
     )
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=str, default="configs/config.yaml")
-    parser.add_argument("--num_clients", type=int, default=3)
-    parser.add_argument("--num_rounds", type=int, default=5)
-    parser.add_argument("--r", type=int, default=8)
-    args = parser.parse_args()
-
-    # TODO: actually load args.config and override defaults below
-    main(num_clients=args.num_clients, num_rounds=args.num_rounds, r=args.r)
+    
+    return history
