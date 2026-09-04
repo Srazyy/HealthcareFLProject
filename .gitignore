@@ -32,3 +32,10 @@ Thumbs.db
 
 # Flower / logs
 *.log
+
+# Agent state & internal planning files
+MEMORY.md
+PROGRESS.md
+RULES.md
+TASKS.md
+pyrefly.toml
