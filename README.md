@@ -2,7 +2,7 @@
 
 **Mapping where privacy, compression, and data imbalance collide in clinical NLP**
 
-Anantveer Singh Beniwal (23BCE1748) · Shresth Kumar Gupta (23BCE1578) · Abhay Singh Khinchi (23BCE1075)
+Shresth Kumar Gupta (23BCE1578) · Anantveer Singh Beniwal (23BCE1748) · Abhay Singh Khinchi (23BCE1075)
 
 ---
 
