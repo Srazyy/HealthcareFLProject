@@ -1,16 +1,14 @@
 """
 Differential privacy wrapper around a PyTorch optimizer, via Opacus.
 
-Owner: Track A
-
 Implements the two-step DP-SGD from the project brief:
   1. Clipping:  g_i_bar = g_i * min(1, C / ||g_i||_2)
   2. Noise:     g_tilde = g_bar + N(0, sigma^2 * C^2 * I)
 
-TODO:
-- Wire this into a real training loop (with a real model/dataloader).
-- Sweep epsilon and log the resulting accuracy/F1 to build the
-  privacy-budget vs accuracy curve referenced in the slides.
+Provides:
+  - validate_and_fix_model(): ensures Opacus compatibility for PEFT models.
+  - make_private(): attaches PrivacyEngine with auto-calibrated σ from target ε.
+  - get_epsilon_spent(): queries cumulative privacy budget consumed.
 """
 
 import torch

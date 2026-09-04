@@ -1,15 +1,11 @@
 """
 Dirichlet-based non-IID data partitioning across simulated hospitals.
 
-Owner: Track A
-
-TODO:
-- Load the actual dataset (patient reviews / clinical notes, or a stand-in
-  public dataset for now).
-- Implement partition_data() below.
-- Add a quick script/plot showing class distribution per client for a given
-  alpha, to visually confirm the skew (e.g. alpha=0.1 -> highly skewed,
-  alpha=100 -> near-IID).
+Provides:
+  - download_and_tokenize(): fetches health_fact from HF Hub (binary labels),
+    with synthetic fallback.
+  - partition_data(): splits sample indices across N clients using Dirichlet(α).
+  - create_client_dataloaders(): builds per-client train/val DataLoaders.
 """
 
 import numpy as np
@@ -20,10 +16,14 @@ from torch.utils.data import DataLoader, Subset
 import torch
 
 
-def partition_data(labels: np.ndarray, num_clients: int, alpha: float, seed: int = 42):
-    """
-    Partition sample indices across `num_clients` using a Dirichlet
-    distribution over class proportions, controlled by `alpha`.
+def partition_data(
+    labels: np.ndarray,
+    num_clients: int,
+    alpha: float,
+    seed: int = 42,
+    min_samples: int = 10,
+) -> list[np.ndarray]:
+    """Partition sample indices across `num_clients` using a Dirichlet distribution.
 
     Lower alpha -> more skewed / non-IID (matches the "Hospital A: 90%
     negative, Hospital B: 90% positive" scenario from the project brief).
@@ -31,30 +31,37 @@ def partition_data(labels: np.ndarray, num_clients: int, alpha: float, seed: int
 
     Args:
         labels: 1D array of class labels for the full dataset.
-        num_clients: number of simulated hospitals.
+        num_clients: Number of simulated hospitals.
         alpha: Dirichlet concentration parameter.
         seed: RNG seed for reproducibility.
+        min_samples: Minimum required samples per client partition.
 
     Returns:
-        List[np.ndarray]: one array of sample indices per client.
+        List of sample index arrays, one per client.
     """
     rng = np.random.default_rng(seed)
     num_classes = len(np.unique(labels))
-    client_indices = [[] for _ in range(num_clients)]
+    min_required = min(min_samples, len(labels) // num_clients)
 
-    for c in range(num_classes):
-        class_idx = np.where(labels == c)[0]
-        rng.shuffle(class_idx)
+    client_indices: list[list[int]] = [[] for _ in range(num_clients)]
+    for _ in range(100):
+        client_indices = [[] for _ in range(num_clients)]
+        for c in range(num_classes):
+            class_idx = np.where(labels == c)[0]
+            rng.shuffle(class_idx)
 
-        proportions = rng.dirichlet(alpha=[alpha] * num_clients)
-        # convert proportions to split points
-        split_points = (np.cumsum(proportions) * len(class_idx)).astype(int)[:-1]
-        splits = np.split(class_idx, split_points)
+            proportions = rng.dirichlet(alpha=[alpha] * num_clients)
+            # convert proportions to split points
+            split_points = (np.cumsum(proportions) * len(class_idx)).astype(int)[:-1]
+            splits = np.split(class_idx, split_points)
 
-        for client_id, idx in enumerate(splits):
-            client_indices[client_id].extend(idx.tolist())
+            for client_id, idx in enumerate(splits):
+                client_indices[client_id].extend(idx.tolist())
 
-    return [np.array(idx) for idx in client_indices]
+        if all(len(idx) >= min_required for idx in client_indices):
+            break
+
+    return [np.array(idx, dtype=np.int64) for idx in client_indices]
 
 
 import logging
@@ -111,29 +118,35 @@ def download_and_tokenize(
 
 def create_client_dataloaders(
     dataset: Dataset,
-    client_indices: List[np.ndarray],
+    client_indices: list[np.ndarray],
     batch_size: int = 16,
     val_split: float = 0.1,
     seed: int = 42,
-) -> List[Tuple[DataLoader, DataLoader]]:
-    """
-    For each client's index partition:
-    1. Subset the tokenized dataset
-    2. Split into train / validation (90/10)
-    3. Wrap in PyTorch DataLoaders
-    
+) -> list[tuple[DataLoader, DataLoader]]:
+    """Builds per-client train and validation DataLoaders.
+
+    Args:
+        dataset: The tokenized dataset to slice.
+        client_indices: List of index arrays, one per client.
+        batch_size: DataLoader batch size.
+        val_split: Fraction of each client's data reserved for validation.
+        seed: Random seed for train/val split reproducibility.
+
     Returns:
         List of (train_loader, val_loader) tuples, one per client.
     """
     dataloaders = []
     generator = torch.Generator().manual_seed(seed)
-    
+
     for indices in client_indices:
         client_subset = Subset(dataset, indices.tolist())
-        
+
         val_size = int(len(client_subset) * val_split)
         train_size = len(client_subset) - val_size
-        
+        if val_size == 0 and len(client_subset) > 1:
+            val_size = 1
+            train_size = len(client_subset) - 1
+
         train_ds, val_ds = torch.utils.data.random_split(
             client_subset, [train_size, val_size], generator=generator
         )

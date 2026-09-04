@@ -145,6 +145,7 @@ def build_client_fn(
             model=model,
             trainloader=trainloader,
             valloader=valloader,
+            device=device,
             optimizer=optimizer,
             privacy_engine=privacy_engine,
             lr=config["training"]["learning_rate"],

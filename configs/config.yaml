@@ -1,5 +1,5 @@
 # Experiment sweep settings for the FL + LoRA + DP benchmark.
-# Referenced by src/federated/server.py (loading not yet wired in -- TODO).
+# Loaded by main.py:load_config(). See MEMORY.md for sweep grid details.
 
 federated:
   num_clients: 3
