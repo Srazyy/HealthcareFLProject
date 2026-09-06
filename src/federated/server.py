@@ -3,7 +3,7 @@ import logging
 import math
 
 import flwr as fl
-from flwr.common import Metrics
+from flwr.common import Context, Metrics
 from flwr.server.history import History
 
 logger = logging.getLogger(__name__)
@@ -39,14 +39,14 @@ def weighted_average(metrics: list[tuple[int, Metrics]]) -> Metrics:
 
 
 def run_simulation(
-    client_fn: Callable[[str], fl.client.Client | fl.client.NumPyClient],
+    client_fn: Callable[[Context], fl.client.Client | fl.client.NumPyClient] | Callable[[str], fl.client.Client | fl.client.NumPyClient],
     num_clients: int = 3,
     num_rounds: int = 5,
 ) -> History:
     """Launches the central server and coordinates the simulation.
 
     Args:
-        client_fn: Factory function mapping client ID string to Client.
+        client_fn: Factory function mapping Flower Context to Client.
         num_clients: Total simulated hospital clients.
         num_rounds: Number of federated training rounds.
 

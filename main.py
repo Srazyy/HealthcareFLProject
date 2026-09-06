@@ -14,20 +14,22 @@ Usage:
 
 import argparse
 import logging
-import yaml
-import torch
-import numpy as np
+
 import flwr as fl
+from flwr.common import Context
+import numpy as np
+import torch
+import yaml
 
 from src.data.partition import (
+    create_client_dataloaders,
     download_and_tokenize,
     partition_data,
-    create_client_dataloaders,
 )
-from src.models.lora_model import setup_lora_model
-from src.privacy.dp_engine import validate_and_fix_model, make_private, get_epsilon_spent
 from src.federated.client import HealthcareClient
 from src.federated.server import run_simulation
+from src.models.lora_model import setup_lora_model
+from src.privacy.dp_engine import get_epsilon_spent, make_private, validate_and_fix_model
 
 logging.basicConfig(
     level=logging.INFO,
@@ -71,7 +73,7 @@ def build_client_fn(
     current_epsilon: float | None,
 ):
     """
-    Returns a Flower `client_fn(cid) -> NumPyClient` closure.
+    Returns a Flower `client_fn(context: Context) -> Client` closure.
 
     Each simulated hospital gets:
       1. A fresh LoRA-adapted DistilBERT model (on the target device)
@@ -83,8 +85,11 @@ def build_client_fn(
     Only noised LoRA adapter deltas are returned to the server.
     """
 
-    def client_fn(cid: str) -> fl.client.NumPyClient:
-        client_id = int(cid)
+    def client_fn(context: Context) -> fl.client.Client:
+        if isinstance(context, Context):
+            client_id = int(context.node_config["partition-id"])
+        else:
+            client_id = int(context)
         logger.info(
             "Spawning client %d  (r=%d, ε=%s)",
             client_id,
