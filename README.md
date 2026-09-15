@@ -1,189 +1,195 @@
-# Federated Learning in Healthcare
+# HealthcareFLProject - Privacy-Preserving Clinical NLP with Federated Learning
 
-**Mapping where privacy, compression, and data imbalance collide in clinical NLP**
+![License](https://img.shields.io/github/license/your-username/HealthcareFLProject) ![Language](https://img.shields.io/github/languages/top/your-username/HealthcareFLProject) ![Stars](https://img.shields.io/github/stars/your-username/HealthcareFLProject) ![Forks](https://img.shields.io/github/forks/your-username/HealthcareFLProject)
 
-Shresth Kumar Gupta (23BCE1578) · Anantveer Singh Beniwal (23BCE1748) · Abhay Singh Khinchi (23BCE1075)
+This project addresses the challenge of training NLP models on sensitive clinical data without centralization. It implements a Federated Learning pipeline using DistilBERT, optimized with LoRA for efficiency and secured with Differential Privacy.
 
 ---
 
-## 1. Overview
+## Federated Learning in Healthcare
 
-Hospitals want to train shared NLP models on patient reviews and clinical notes
-without ever centralizing raw patient data. This project builds a **Federated
-Learning (FL)** pipeline over a **DistilBERT** backbone, made bandwidth-efficient
-with **LoRA** adapters and made privacy-preserving with **Differential Privacy
-(DP-SGD)**.
+Mapping where privacy, compression, and data imbalance collide in clinical NLP.
 
-**The problem we're studying:** existing FL+LoRA+DP frameworks are validated on
-clean, class-balanced datasets. Real hospitals are not balanced — one hospital's
-notes may skew 90% negative, another's 90% positive. This project empirically
-maps how much the three-way combination of **DP noise + LoRA compression +
-worst-case data heterogeneity** degrades model accuracy, and produces a
-reference table:
+### Core Components
 
-```
-Privacy Budget (ε)  →  LoRA Rank (r)  →  Target F1-Score
-```
+*   **Base Model:** `transformers` (DistilBERT, 66M params) for clinical text feature extraction.
+*   **Adaptation:** `peft` (LoRA) to freeze base weights and train low-rank matrices, reducing trainable parameters by >99%.
+*   **Privacy:** `opacus` (DP-SGD) for per-sample gradient clipping and noise addition.
+*   **Orchestration:** `flwr` (Flower) to simulate hospital nodes, manage local training, and aggregate weights.
+*   **Data Skew:** Dirichlet distribution (`α`) for non-IID data partitioning across simulated clients.
+*   **Engine:** `PyTorch` for tensor operations and backpropagation.
 
-## 2. Architecture
+### Usage
 
-| Layer | Tool | Role |
-|---|---|---|
-| Base model | `transformers` (DistilBERT, 66M params) | Feature extraction from clinical/review text |
-| Adaptation | `peft` (LoRA) | Freezes base weights, trains low-rank matrices `A`, `B` so `ΔW = BA`, cutting trainable params >99% |
-| Privacy | `opacus` (DP-SGD) | Per-sample gradient clipping + calibrated Gaussian noise before every update |
-| Orchestration | `flwr` (Flower) | Simulates 3 hospital nodes, handles local training + weight aggregation |
-| Data skew | Dirichlet distribution (`α`) | Mathematically partitions data non-IID across simulated hospitals |
-| Engine | `PyTorch` | Tensor ops / backprop |
-
-### Pipeline flow
-```
-Raw text (per-hospital, non-IID via Dirichlet α)
-        │
-        ▼
-DistilBERT tokenizer + frozen backbone
-        │
-        ▼
-LoRA adapters (A, B)  ── ΔW = BA, B initialized to 0
-        │
-        ▼
-Opacus DP-SGD: clip per-sample grads (C) → add N(0, σ²C²) noise
-        │
-        ▼
-Flower client sends compressed, noised LoRA update → server aggregates
-        │
-        ▼
-Evaluation: F1-score per (ε, r, α) configuration
-```
-
-## 3. Repo structure
-
-```
-fl-healthcare-repo/
-├── README.md                  ← you are here
-├── main.py                    ← pipeline entry point (single-run simulation)
-├── sweep.py                   ← grid runner for full (r, ε, α) benchmark sweep
-├── configs/
-│   └── config.yaml            ← experiment sweep settings (ε, r, α, rounds)
-├── requirements/
-│   ├── base.txt               ← OS-agnostic packages (flwr, peft, opacus, seaborn, etc.)
-│   ├── mac.txt                ← macOS-specific (Apple Silicon / MPS)
-│   ├── windows.txt            ← Windows-specific (CUDA or CPU)
-│   └── linux.txt              ← Linux-specific (CUDA or CPU)
-├── setup/
-│   ├── setup_mac.sh
-│   ├── setup_windows.ps1
-│   └── setup_linux.sh
-├── src/
-│   ├── data/
-│   │   └── partition.py       ← Dirichlet-based non-IID partitioning
-│   ├── models/
-│   │   └── lora_model.py      ← DistilBERT + LoRA via peft
-│   ├── privacy/
-│   │   └── dp_engine.py       ← Opacus wrapper (clipping + noise)
-│   └── federated/
-│       ├── client.py          ← Flower client (local DP-SGD train loop + 6 metrics)
-│       └── server.py          ← Flower server (FedAvg aggregation strategy)
-├── tests/                     ← zero-dependency unittest test suite
-│   ├── test_partition.py
-│   ├── test_lora_model.py
-│   ├── test_dp_engine.py
-│   └── test_server.py
-├── notebooks/
-│   └── analysis.ipynb         ← benchmark analysis: heatmaps, tradeoff curves, tables
-├── data/                      ← raw/processed datasets (gitignored)
-└── results/                   ← sweep results CSV, summaries, metrics (gitignored)
-```
-
-## 4. Setup
-
-Python **3.10 or 3.11** recommended (Opacus/PEFT compatibility). Use a virtual
-environment either way.
-
-### macOS
+Run the main engine to orchestrate the federated learning pipeline.
 
 ```bash
-bash setup/setup_mac.sh
+# Run with default configuration
+python main.py
+
+# Specify a configuration file
+python main.py --config configs/config.yaml
+
+# Override specific parameters for a single run
+python main.py --rank 4 --epsilon 8.0 --alpha 0.1
+
+# Run without Differential Privacy for baseline comparison
+python main.py --rounds 2 --epsilon null
 ```
-Installs PyTorch with **MPS** (Apple Silicon GPU) support where available, falls
-back to CPU on Intel Macs. See `requirements/mac.txt`.
 
-### Windows
+## Local Setup
 
-```powershell
-.\setup\setup_windows.ps1
-```
-Installs CUDA-enabled PyTorch if an NVIDIA GPU + CUDA toolkit is detected,
-otherwise CPU build. See `requirements/windows.txt`. Run this from **PowerShell**,
-not cmd.exe. If script execution is blocked, run once as admin:
-`Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`
+### Prerequisites
 
-### Linux
+*   Python 3.8+
 
-```bash
-bash setup/setup_linux.sh
-```
-See `requirements/linux.txt`.
+### Install Dependencies
 
-### Why OS-specific files at all?
-`torch` needs a different install index depending on OS/GPU (CUDA build on
-Windows/Linux with NVIDIA GPUs, MPS build on Apple Silicon, CPU-only otherwise).
-Everything else (`flwr`, `transformers`, `peft`, `opacus`, etc.) is identical
-across platforms and lives in `requirements/base.txt`.
+This project uses OS-specific installation for PyTorch to ensure compatibility with your hardware (CUDA, MPS, or CPU).
 
-## 5. Running Experiments
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/your-username/fl-healthcare-repo.git
+    cd fl-healthcare-repo
+    ```
+
+2.  **Install base dependencies:**
+    ```bash
+    pip install -r requirements/base.txt
+    ```
+
+3.  **Install OS-specific dependencies:**
+
+    *   **Linux:**
+        ```bash
+        bash setup/setup_linux.sh
+        ```
+        (Installs packages listed in `requirements/linux.txt`)
+
+    *   **macOS (Apple Silicon):**
+        ```bash
+        bash setup/setup_mac.sh
+        ```
+        (Installs packages listed in `requirements/mac.txt`)
+
+    *   **Windows:**
+        ```bash
+        powershell -ExecutionPolicy Bypass -File setup/setup_windows.ps1
+        ```
+        (Installs packages listed in `requirements/windows.txt`)
+
+### Run Simulations
+
+*   **Single Run Simulation:**
+    ```bash
+    python main.py
+    ```
+
+*   **Benchmark Sweep:**
+    ```bash
+    python sweep.py
+    ```
+    (Uses settings from `configs/config.yaml`)
+
+## Features
+
+*   **Non-IID Data Partitioning:** Simulates realistic healthcare data distribution using Dirichlet partitioning with safeguards.
+*   **Parameter-Efficient Fine-Tuning:** Employs LoRA (Low-Rank Adaptation) for DistilBERT, significantly reducing trainable parameters.
+*   **Differential Privacy:** Integrates DP-SGD with per-sample gradient clipping and calibrated Gaussian noise for enhanced privacy.
+*   **Multi-Client Federation:** Simulates a Flower federation with multiple hospital nodes for distributed learning.
+*   **Comprehensive Metric Tracking:** Monitors key performance indicators including Accuracy, Precision, Recall, F1, MCC, and AUC-ROC.
+
+## Tech Stack
+
+*   **Core ML/DL:**
+    *   [PyTorch](https://pytorch.org/): For tensor operations and automatic differentiation.
+    *   [Transformers](https://huggingface.co/docs/transformers/index): Utilizes DistilBERT for feature extraction.
+    *   [PEFT (LoRA)](https://github.com/huggingface/peft): For parameter-efficient fine-tuning via Low-Rank Adaptation.
+*   **Federated Learning:**
+    *   [Flower](https://flower.dev/): Orchestrates federated training across simulated clients.
+*   **Differential Privacy:**
+    *   [Opacus](https://opacus.ai/): Implements DP-SGD for privacy-preserving model updates.
+*   **Data Handling:**
+    *   [Dirichlet Distribution](https://en.wikipedia.org/wiki/Dirichlet_distribution): Used to simulate non-IID data skew across clients.
+
+## Usage
 
 ### Single Simulation Run
 
-Execute a single federated learning simulation using `main.py`:
+Execute a single federated learning simulation using `main.py`.
 
 ```bash
-# Default parameters from configs/config.yaml
-python main.py
 
-# Custom single-run configuration with CLI overrides
-python main.py --rank 4 --epsilon 8.0 --alpha 0.5 --rounds 5
+## Architecture
 
-# Baseline run without differential privacy
-python main.py --rank 8 --epsilon null --alpha 1.0 --rounds 5
-```
+The HealthcareFLProject employs a layered architecture designed for privacy-preserving federated learning with parameter-efficient model adaptation.
 
-### Full Benchmark Sweep
+### System Tracks
 
-Run the full grid sweep over all rank ($r$), privacy budget ($\varepsilon$), and heterogeneity ($\alpha$) combinations:
+The project is organized into two core engineering tracks:
 
-```bash
-# Full sweep across all combinations in configs/config.yaml
-python sweep.py
+*   **Track A (Privacy & Data):**
+    *   Handles non-IID data partitioning using a Dirichlet distribution.
+    *   Implements safeguards for sample-count recovery.
+    *   Manages per-sample gradient clipping and calibrated Gaussian DP-SGD noise.
+    *   See `src/data/partition.py` and `src/privacy/dp_engine.py`.
 
-# Fast validation sweep (2 rounds per configuration)
-python sweep.py --rounds 2
-```
+*   **Track B (Model & Federation):**
+    *   Focuses on parameter-efficient fine-tuning of DistilBERT using low-rank adapters (LoRA).
+    *   Orchestrates federated training across multiple clients using Flower.
+    *   Tracks comprehensive metrics including Accuracy, Precision, Recall, F1, MCC, and AUC-ROC.
+    *   See `src/models/lora_model.py` and `src/federated/`.
 
-Outputs are saved to `results/sweep_results.csv` and `results/sweep_summary.json`.
+### Architectural Layers
 
-### Evaluation & Analysis
+| Layer         | Tool/Component                               | Role                                                    |
+| :------------ | :------------------------------------------- | :------------------------------------------------------ |
+| Engine        | `PyTorch`                                    | Core tensor operations and backpropagation.             |
+| Base Model    | `transformers` (DistilBERT, 66M params)      | Feature extraction from clinical text.                  |
+| Adaptation    | `peft` (LoRA)                                | Trains low-rank matrices (`ΔW = BA`), reducing trainable parameters significantly. |
+| Privacy       | `opacus` (DP-SGD)                            | Applies per-sample gradient clipping and Gaussian noise. |
+| Orchestration | `flwr` (Flower)                              | Simulates multi-client federations and manages aggregation. |
+| Data Skew     | Dirichlet distribution (`α`)                 | Partitions data non-IID across simulated hospitals.     |
 
-Open and run `notebooks/analysis.ipynb` to visualize benchmark outputs:
-- **Reference Table:** Performance breakdown across privacy budgets and LoRA ranks.
-- **Metric Heatmaps:** F1-score, MCC, and AUC-ROC across $(r, \varepsilon)$ configurations.
-- **Tradeoff Curves:** Accuracy vs. privacy budget $(\varepsilon)$ and rank $(r)$.
-- **Convergence Trajectories:** Federated round-by-round training loss.
+## Repository Structure
 
-### Running Unit Tests
+This repository is organized to facilitate clear development and experimentation with federated learning in healthcare.
 
-Run the zero-dependency test suite:
-
-```bash
-python -m unittest discover tests/ -v
-```
-
-## 6. Architecture & System Tracks
-
-The system is structured into two core engineering tracks:
-- **Track A (Privacy & Data):** Non-IID Dirichlet data partitioning with sample-count recovery safeguards (`src/data/partition.py`), alongside per-sample gradient clipping and calibrated Gaussian DP-SGD noise engines (`src/privacy/dp_engine.py`).
-- **Track B (Model & Federation):** Parameter-efficient DistilBERT fine-tuning via low-rank adapters (`src/models/lora_model.py`), coordinated over a multi-client Flower federation simulation with comprehensive metric tracking (Accuracy, Precision, Recall, F1, MCC, AUC-ROC) (`src/federated/`).
+*   **`configs/`**: Stores experiment configuration files.
+    *   `config.yaml`: Main configuration for sweep parameters (e.g., rounds, epsilon, alpha).
+*   **`requirements/`**: Contains dependency lists for different operating systems.
+    *   `base.txt`: OS-agnostic Python packages.
+    *   `linux.txt`: Linux-specific dependencies.
+    *   `mac.txt`: macOS-specific dependencies.
+    *   `windows.txt`: Windows-specific dependencies.
+*   **`setup/`**: Scripts for setting up the development environment.
+    *   `setup_linux.sh`: Linux setup script.
+    *   `setup_windows.ps1`: Windows setup script.
+    *   `setup_mac.sh`: macOS setup script.
+*   **`src/`**: Core source code for the project.
+    *   **`data/`**: Data handling and partitioning logic.
+        *   `partition.py`: Implements Dirichlet-based non-IID data partitioning.
+    *   **`models/`**: Model definitions and implementations.
+        *   `lora_model.py`: Defines a DistilBERT model with LoRA integration.
+    *   **`privacy/`**: Modules for privacy-preserving techniques.
+        *   `dp_engine.py`: Wrapper for Opacus for differential privacy (clipping and noise).
+    *   **`federated/`**: Federated learning components.
+        *   `client.py`: Flower client implementation (local DP-SGD training, metrics).
+        *   `server.py`: Flower server implementation (FedAvg aggregation).
+*   **`tests/`**: Unit tests for various project components.
+    *   Includes tests for data partitioning, models, and DP engines.
+*   **`README.md`**: The main project README file.
+*   **`main.py`**: Entry point for running a single federated learning pipeline simulation.
+*   **`sweep.py`**: Script for running benchmark sweeps across different parameters (r, ε, α).
 
 ## 7. Status
 
-✅ **Pipeline Functional & Tested** — Core architecture implemented with zero-dependency unit tests passing, end-to-end simulation validated, grid sweep infrastructure operational, and analysis visualization notebook configured.
+*   **Core Pipelines Functional:** Data partitioning, DP-SGD noise engine, LoRA fine-tuning, and Flower federation simulation are implemented and operational.
+*   **Unit Tests Passing:** All zero-dependency unit tests for key components (`partition.py`, `dp_engine.py`, `lora_model.py`, `server.py`) are verified.
+*   **End-to-End Simulation Validated:** The complete federated learning workflow has been successfully simulated.
+*   **Grid Sweep Infrastructure:** The system supports automated grid sweeps for hyperparameter tuning.
+*   **Analysis Visualization:** A configured notebook (`notebooks/analysis.ipynb`) is ready for visualizing benchmark results.
+
+---
+
+*This README was generated by [DevDoq](https://devdoq.com)*
