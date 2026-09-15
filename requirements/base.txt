@@ -12,6 +12,7 @@ scikit-learn
 pandas
 numpy
 pyyaml
+types-PyYAML
 tqdm
 matplotlib
 accelerate

@@ -1,4 +1,5 @@
 import flwr as fl
+from flwr.common import Scalar
 import torch
 import numpy as np
 from collections import OrderedDict
@@ -70,7 +71,7 @@ class HealthcareClient(fl.client.NumPyClient):
         # 3. Return the updated LoRA weights, the number of local examples, and any extra metrics
         return self.get_parameters(config={}), len(self.trainloader.dataset), {}
 
-    def evaluate(self, parameters, config):
+    def evaluate(self, parameters: list[np.ndarray], config: dict[str, Scalar]) -> tuple[float, int, dict[str, Scalar]]:
         """
         Tests how well the newly updated global model performs on this hospital's local validation data.
         """
@@ -112,7 +113,7 @@ class HealthcareClient(fl.client.NumPyClient):
         precision = float(precision_score(all_labels, all_preds, zero_division=0))
         recall = float(recall_score(all_labels, all_preds, zero_division=0))
         f1 = float(f1_score(all_labels, all_preds, zero_division=0))
-        mcc = float(matthews_corrcoef(all_labels, all_preds))
+        mcc = matthews_corrcoef(all_labels, all_preds)
 
         probs = torch.softmax(all_logits, dim=-1)[:, 1].numpy()
         try:

@@ -13,7 +13,7 @@ Provides:
 
 import torch
 from torch import nn
-from typing import Tuple
+from typing import Tuple, cast
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 from opacus import PrivacyEngine
@@ -83,7 +83,7 @@ def make_private(
     """
     privacy_engine = PrivacyEngine()
 
-    private_model, private_optimizer, private_data_loader = privacy_engine.make_private_with_epsilon(
+    dp_obj = privacy_engine.make_private_with_epsilon(
         module=model,
         optimizer=optimizer,
         data_loader=data_loader,
@@ -91,6 +91,9 @@ def make_private(
         target_delta=target_delta,
         epochs=epochs,
         max_grad_norm=max_grad_norm,
+    )
+    private_model, private_optimizer, private_data_loader = cast(
+        Tuple[nn.Module, Optimizer, DataLoader], dp_obj
     )
 
     return private_model, private_optimizer, private_data_loader, privacy_engine
