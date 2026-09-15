@@ -111,7 +111,44 @@ def main():
     plt.close()
     print(f"Saved: {plot_path}")
 
+    # 3. Privacy-Utility Tradeoff Curves (F1 vs Epsilon & Rank across Alphas)
+    fig, axes = plt.subplots(1, 2, figsize=(13, 4.8))
+    sns.barplot(
+        data=final_df,
+        x="alpha",
+        y="f1",
+        hue="epsilon_label",
+        palette="viridis",
+        edgecolor="black",
+        ax=axes[0]
+    )
+    axes[0].set_title("F1-Score by Data Skew (α) & Privacy Budget (ε)", fontweight="bold")
+    axes[0].set_xlabel("Dirichlet Skew (α)")
+    axes[0].set_ylabel("Final Round F1-Score")
+    axes[0].set_ylim(0, 1.05)
+
+    sns.barplot(
+        data=final_df,
+        x="rank",
+        y="f1",
+        hue="epsilon_label",
+        palette="magma",
+        edgecolor="black",
+        ax=axes[1]
+    )
+    axes[1].set_title("F1-Score by LoRA Rank (r) & Privacy Budget (ε)", fontweight="bold")
+    axes[1].set_xlabel("LoRA Bottleneck Rank (r)")
+    axes[1].set_ylabel("Final Round F1-Score")
+    axes[1].set_ylim(0, 1.05)
+
+    plt.tight_layout()
+    plot_path = out_dir / "tradeoff_curves.png"
+    plt.savefig(plot_path, bbox_inches="tight")
+    plt.close()
+    print(f"Saved: {plot_path}")
+
     print("All plots generated successfully in results/plots/")
+
 
 if __name__ == "__main__":
     main()

@@ -3,16 +3,16 @@
 
 federated:
   num_clients: 3
-  num_rounds: 5
+  num_rounds: 2
   strategy: fedavg
 
 lora:
-  ranks: [2, 4, 8, 16]        # r values to sweep
+  ranks: [4, 8]        # r values to sweep
   lora_alpha: 16
   lora_dropout: 0.1
 
 privacy:
-  epsilons: [1, 3, 8, null]   # null = no DP, baseline
+  epsilons: [8.0, null]   # null = no DP, baseline; 8.0 = DP
   target_delta: 1.0e-5
   max_grad_norm: 1.0          # clipping threshold C
 
