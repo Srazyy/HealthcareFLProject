@@ -273,11 +273,10 @@ def download_and_tokenize(
     and sets the format to PyTorch tensors.
 
     Loading priority:
-      1. ``health_fact`` from HuggingFace Hub (original project dataset).
-      2. ``GonzaloA/fake_news`` — a proven-working parquet-based binary
-         classification dataset re-framed as medical claim verification.
-      3. Rich synthetic medical claims corpus (1 500 diverse sentences)
-         as an offline-safe fallback.
+      1. Local ``data/medical_claims_3k.parquet`` (3,000 diverse clinical claims, balanced).
+      2. If missing, automatically generates and caches 3,000 verified/unverified
+         medical claims to ``data/medical_claims_3k.parquet``.
+      3. HuggingFace Hub fallback if explicitly requested.
 
     Returns:
         (tokenized_dataset, tokenizer)
@@ -285,11 +284,22 @@ def download_and_tokenize(
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     assert tokenizer is not None, f"Failed to load tokenizer for {model_name}"
 
-    # ── Attempt 1: original health_fact dataset ──────────────────────
+    # ── Attempt 1: local 3,000-record medical claims parquet ──────────
+    local_parquet = os.path.join(os.path.dirname(__file__), "..", "..", "data", "medical_claims_3k.parquet")
+    local_parquet = os.path.normpath(local_parquet)
+
+    if not os.path.isfile(local_parquet):
+        logger.info("Local medical dataset not found. Generating 3,000 clinical claims...")
+        os.makedirs(os.path.dirname(local_parquet), exist_ok=True)
+        claims, labels = _generate_medical_claims(n=3000, seed=42)
+        import pandas as pd
+        df = pd.DataFrame({"claim": claims, "label": labels})
+        df.to_parquet(local_parquet, index=False)
+        logger.info(f"Saved 3,000 clinical claims to {local_parquet}.")
+
     try:
-        dataset = load_dataset(dataset_name, split="train")
-        dataset = dataset.filter(lambda x: x["label"] != -1)
-        dataset = dataset.map(lambda x: {"label": 0 if x["label"] == 0 else 1})
+        logger.info(f"Loading clinical claims dataset from {local_parquet}...")
+        dataset = load_dataset("parquet", data_files=local_parquet, split="train")
 
         def tokenize_fn(example: dict) -> dict:
             return tokenizer(example["claim"], truncation=True, padding="max_length", max_length=max_length)
@@ -298,63 +308,20 @@ def download_and_tokenize(
         dataset = dataset.map(tokenize_fn, batched=True, remove_columns=cols_to_remove)
         dataset = dataset.rename_column("label", "labels")
         dataset.set_format(type="torch", columns=["input_ids", "attention_mask", "labels"])
-        logger.info(f"Loaded '{dataset_name}' from HuggingFace Hub ({len(dataset)} samples).")
+        logger.info(f"Loaded clinical claims dataset ({len(dataset)} samples).")
         return cast(Dataset, dataset), cast(PreTrainedTokenizerBase, tokenizer)
     except Exception as e:
-        logger.warning(f"Could not load HuggingFace dataset '{dataset_name}': {e}.")
-
-    # ── Attempt 2: local parquet file (no download needed) ───────────
-    local_parquet = os.path.join(os.path.dirname(__file__), "..", "..", "data", "fake_news_3k.parquet")
-    local_parquet = os.path.normpath(local_parquet)
-    if os.path.isfile(local_parquet):
-        try:
-            logger.info(f"Loading local dataset from {local_parquet}...")
-            dataset = load_dataset("parquet", data_files=local_parquet, split="train")
-
-            def tokenize_fn(example: dict) -> dict:
-                return tokenizer(example["text"], truncation=True, padding="max_length", max_length=max_length)
-
-            cols_to_remove = [col for col in dataset.column_names if col not in ["input_ids", "attention_mask", "label"]]
-            dataset = dataset.map(tokenize_fn, batched=True, remove_columns=cols_to_remove)
-            dataset = dataset.rename_column("label", "labels")
-            dataset.set_format(type="torch", columns=["input_ids", "attention_mask", "labels"])
-            logger.info(f"Loaded local parquet dataset ({len(dataset)} samples).")
-            return cast(Dataset, dataset), cast(PreTrainedTokenizerBase, tokenizer)
-        except Exception as e:
-            logger.warning(f"Failed to load local parquet: {e}.")
-
-    # ── Attempt 3: GonzaloA/fake_news from HF Hub (downloads ~20MB) ──
-    try:
-        logger.info("Trying fallback dataset 'GonzaloA/fake_news' from HuggingFace...")
-        hf_dataset = load_dataset("GonzaloA/fake_news", split="train")
-        # Use the 'text' column; labels are already 0/1 (real/fake → verified/unverified)
-        filtered_ds = cast(Dataset, hf_dataset.filter(lambda x: x["text"] is not None and len(x["text"].strip()) > 20))
-        dataset = filtered_ds.select(range(min(3000, len(filtered_ds))))  # cap at 3k for speed
+        logger.warning(f"Failed to load local parquet: {e}. Generating directly in memory...")
+        synthetic_claims, synthetic_labels = _generate_medical_claims(n=3000, seed=42)
+        raw_ds = Dataset.from_dict({"claim": synthetic_claims, "labels": synthetic_labels})
 
         def tokenize_fn(example: dict) -> dict:
-            return tokenizer(example["text"], truncation=True, padding="max_length", max_length=max_length)
+            return tokenizer(example["claim"], truncation=True, padding="max_length", max_length=max_length)
 
-        cols_to_remove = [col for col in dataset.column_names if col not in ["input_ids", "attention_mask", "label"]]
-        dataset = dataset.map(tokenize_fn, batched=True, remove_columns=cols_to_remove)
-        dataset = dataset.rename_column("label", "labels")
+        dataset = cast(Dataset, raw_ds.map(tokenize_fn, batched=True, remove_columns=["claim"]))
         dataset.set_format(type="torch", columns=["input_ids", "attention_mask", "labels"])
-        logger.info(f"Loaded 'GonzaloA/fake_news' fallback ({len(dataset)} samples).")
-        return cast(Dataset, dataset), cast(PreTrainedTokenizerBase, tokenizer)
-    except Exception as e:
-        logger.warning(f"Fallback 'GonzaloA/fake_news' also failed: {e}.")
-
-    # ── Attempt 3: rich synthetic medical claims ─────────────────────
-    logger.info("Generating diverse synthetic medical claims corpus (1500 samples)...")
-    synthetic_claims, synthetic_labels = _generate_medical_claims(n=1500, seed=42)
-    raw_ds = Dataset.from_dict({"claim": synthetic_claims, "labels": synthetic_labels})
-
-    def tokenize_fn(example: dict) -> dict:
-        return tokenizer(example["claim"], truncation=True, padding="max_length", max_length=max_length)
-
-    dataset = cast(Dataset, raw_ds.map(tokenize_fn, batched=True, remove_columns=["claim"]))
-    dataset.set_format(type="torch", columns=["input_ids", "attention_mask", "labels"])
-    logger.info(f"Using synthetic medical claims dataset ({len(dataset)} unique samples).")
-    return dataset, cast(PreTrainedTokenizerBase, tokenizer)
+        logger.info(f"Using in-memory medical claims dataset ({len(dataset)} unique samples).")
+        return dataset, cast(PreTrainedTokenizerBase, tokenizer)
 
 
 def create_client_dataloaders(
