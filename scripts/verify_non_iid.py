@@ -29,7 +29,7 @@ def main():
     out_dir.mkdir(parents=True, exist_ok=True)
 
     if not parquet_path.exists():
-        print(f"Error: {parquet_path} does not exist. Run scripts/generate_dataset.py first.")
+        print(f"Error: {parquet_path} does not exist in data/.")
         return
 
     df = pd.read_parquet(parquet_path)
@@ -123,7 +123,7 @@ def main():
     out_file = out_dir / "non_iid_partitions.png"
     plt.savefig(out_file, dpi=200, bbox_inches="tight")
     plt.close()
-    print(f"\n[Proof Plot Generated]: {out_file}")
+    print(f"\n[Proof Plot Exported]: {out_file}")
 
 
 if __name__ == "__main__":

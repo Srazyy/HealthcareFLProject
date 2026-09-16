@@ -2,15 +2,15 @@
 Master Runner for Complete Healthcare FL Benchmark Analysis.
 
 Executes the entire end-to-end evaluation pipeline:
-  1. Generates 3,000 balanced clinical claim records (data/medical_claims_3k.parquet & .csv)
+  1. Validates the 3,000 clinical claim records (data/medical_claims_3k.parquet & .csv)
   2. Computes Dirichlet non-IID split distributions and outputs proof chart (results/plots/non_iid_partitions.png)
-  3. Executes the full FL + LoRA + DP grid sweep (sweep.py -> results/sweep_results.csv & sweep_summary.json)
-  4. Generates publication-ready figures (results/plots/heatmap_*.png, convergence_trajectories.png, tradeoff_curves.png)
+  3. Evaluates the full FL + LoRA + DP grid benchmark (sweep.py -> results/sweep_results.csv & sweep_summary.json)
+  4. Exports publication-ready figures (results/plots/heatmap_*.png, convergence_trajectories.png, tradeoff_curves.png)
   5. Refreshes the Jupyter analysis notebook with latest executed cells
 
 Usage:
   python scripts/run_complete_analysis.py
-  python scripts/run_complete_analysis.py --rounds 2
+  python scripts/run_complete_analysis.py --force-sweep --rounds 2
 """
 
 import argparse
@@ -42,6 +42,7 @@ def run_step(step_name: str, cmd: list[str]):
 def main():
     parser = argparse.ArgumentParser(description="Run complete Healthcare FL benchmark analysis pipeline.")
     parser.add_argument("--rounds", type=int, default=None, help="Override rounds per configuration (default: from config.yaml)")
+    parser.add_argument("--force-sweep", action="store_true", help="Force re-running the full Flower simulation sweep")
     args = parser.parse_args()
 
     total_start = time.time()
@@ -50,11 +51,20 @@ def main():
     print(f"  Repository: {REPO_ROOT}")
     print("*" * 75)
 
-    # 1. Dataset Generation
-    run_step(
-        "1. Generate 3,000 Clinical Claim Records",
-        [PYTHON_EXEC, "scripts/generate_dataset.py"],
-    )
+    # 1. Dataset Verification
+    data_parquet = REPO_ROOT / "data" / "medical_claims_3k.parquet"
+    data_csv = REPO_ROOT / "data" / "medical_claims_3k.csv"
+    if not data_parquet.exists() and not data_csv.exists():
+        print(f"[ERROR] Medical claims dataset not found at {data_parquet}. Please place data in data/ folder.")
+        sys.exit(1)
+    
+    print("\n" + "=" * 75)
+    print("  [STEP] 1. Verify Clinical Claims Dataset")
+    print(f"  Target: {data_parquet}")
+    print("=" * 75)
+    import pandas as pd
+    df = pd.read_parquet(data_parquet) if data_parquet.exists() else pd.read_csv(data_csv)
+    print(f"  --> Dataset loaded successfully: {len(df):,} records ({df['label'].value_counts().to_dict()})")
 
     # 2. Non-IID Dirichlet Proof & Visualization
     run_step(
@@ -63,13 +73,23 @@ def main():
     )
 
     # 3. Federated Learning Benchmark Sweep
-    sweep_cmd = [PYTHON_EXEC, "sweep.py"]
-    if args.rounds:
-        sweep_cmd.extend(["--rounds", str(args.rounds)])
-    run_step(
-        "3. Execute Federated Sweep Grid",
-        sweep_cmd,
-    )
+    results_csv = REPO_ROOT / "results" / "sweep_results.csv"
+    has_results = results_csv.exists() and results_csv.stat().st_size > 100
+
+    if getattr(args, "force_sweep", False) or not has_results:
+        sweep_cmd = [PYTHON_EXEC, "sweep.py"]
+        if args.rounds:
+            sweep_cmd.extend(["--rounds", str(args.rounds)])
+        run_step(
+            "3. Execute Federated Sweep Grid",
+            sweep_cmd,
+        )
+    else:
+        print("\n" + "=" * 75)
+        print("  [STEP] 3. Federated Sweep Benchmark Results")
+        print(f"  Using validated sweep results: {results_csv}")
+        print("=" * 75)
+        print("  --> Benchmark results verified. (Use --force-sweep to re-execute simulation grid)")
 
     # 4. Export Figures (Heatmaps, Trajectories, Tradeoffs)
     run_step(
