@@ -9,9 +9,12 @@ env/
 # Jupyter
 .ipynb_checkpoints/
 
-# Data & results (keep structure via .gitkeep, ignore actual content)
+# Data & results (ignore raw CSVs and oversized full pool, keep training parquet)
 data/*
 !data/.gitkeep
+!data/medical_claims_3k.parquet
+*.csv
+data/pooled_clinical_data_full.parquet
 results/*
 !results/.gitkeep
 
