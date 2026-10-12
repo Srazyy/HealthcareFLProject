@@ -166,6 +166,16 @@ def run_sweep(
     archive_summary_path = history_dir / f"summary_{timestamp_slug}{tag_suffix}.json"
 
     all_rows: list[dict] = []
+    if csv_path.exists():
+        try:
+            with open(csv_path, "r", newline="") as f:
+                reader = csv.DictReader(f)
+                all_rows = [row for row in reader if row.get("rank")]
+            if all_rows:
+                logger.info("Loaded %d existing rows from %s for seamless resumption", len(all_rows), csv_path)
+        except Exception:
+            all_rows = []
+
     final_round_table: dict[str, dict[str, float]] = {}
     completed = 0
     sweep_start = time.time()
@@ -198,6 +208,15 @@ def run_sweep(
             current_epsilon = None if raw_eps is None else float(raw_eps)
             completed += 1
             eps_label = f"{current_epsilon:.1f}" if current_epsilon is not None else "none"
+            model_dir = Path("saved_models") / f"model_r{rank}_eps{eps_label}_alpha{alpha:.1f}"
+
+            # Auto-resume check: skip if adapter is already trained and saved
+            if save_adapters and (model_dir / "adapter_config.json").exists():
+                logger.info(
+                    "[%d/%d] r=%d, ε=%s, α=%.2f — adapter exists at %s. Skipping (resuming from checkpoint)...",
+                    completed, total_configs, rank, eps_label, alpha, model_dir,
+                )
+                continue
 
             logger.info(
                 "[%d/%d] r=%d, ε=%s, α=%.2f — starting %d-round simulation...",
@@ -242,6 +261,16 @@ def run_sweep(
 
             rows = extract_history_rows(history, rank, current_epsilon, alpha)
             all_rows.extend(rows)
+
+            # Incremental save: write to CSV immediately so progress is never lost if interrupted
+            if rows:
+                try:
+                    with open(csv_path, "w", newline="") as f:
+                        writer = csv.DictWriter(f, fieldnames=CSV_COLUMNS)
+                        writer.writeheader()
+                        writer.writerows(all_rows)
+                except Exception as e:
+                    logger.warning("Could not incrementally write to %s: %s", csv_path, e)
 
             elapsed = time.time() - run_start
             # Capture final-round F1 for the reference table
