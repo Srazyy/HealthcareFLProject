@@ -1,0 +1,27 @@
+# Full Publication Benchmark Sweep Grid (48 Configurations)
+# Derived from MEMORY.md specification for Healthcare FL research paper.
+
+federated:
+  num_clients: 3
+  num_rounds: 5
+  strategy: fedavg
+
+lora:
+  ranks: [2, 4, 8, 16]        # Full 4-rank spectrum
+  lora_alpha: 16
+  lora_dropout: 0.1
+
+privacy:
+  epsilons: [1.0, 3.0, 8.0, null]   # Strict (1.0), Moderate (3.0), Relaxed (8.0), Baseline (null)
+  target_delta: 1.0e-5
+  max_grad_norm: 1.0
+
+data:
+  dirichlet_alphas: [0.1, 1.0, 100.0]  # Skewed (0.1), Heterogeneous (1.0), Uniform (100.0)
+  num_labels: 2
+
+training:
+  local_epochs: 1
+  batch_size: 16
+  learning_rate: 5.0e-5
+  seed: 42

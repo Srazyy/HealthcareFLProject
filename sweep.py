@@ -16,6 +16,7 @@ import csv
 import json
 import logging
 import time
+from collections import OrderedDict
 from datetime import datetime, timezone
 from itertools import product
 from pathlib import Path
@@ -30,6 +31,7 @@ from src.data.partition import (
     partition_data,
 )
 from src.federated.server import run_simulation
+from src.models.lora_model import setup_lora_model
 
 logging.basicConfig(
     level=logging.INFO,
@@ -39,6 +41,30 @@ logger = logging.getLogger(__name__)
 
 METRIC_KEYS = ("accuracy", "precision", "recall", "f1", "mcc", "auc_roc")
 CSV_COLUMNS = ["rank", "epsilon", "alpha", "round", *METRIC_KEYS, "loss"]
+
+
+def save_lora_adapter(
+    parameters_ndarrays: list[np.ndarray],
+    rank: int,
+    lora_alpha: int,
+    lora_dropout: float,
+    save_path: Path,
+):
+    """Reconstructs global LoRA model from aggregated weights and saves to disk."""
+    save_path.mkdir(parents=True, exist_ok=True)
+    model, tokenizer = setup_lora_model(
+        r=rank,
+        lora_alpha=lora_alpha,
+        lora_dropout=lora_dropout,
+        num_labels=2,
+    )
+    trainable_names = [name for name, val in model.named_parameters() if val.requires_grad]
+    params_dict = zip(trainable_names, parameters_ndarrays)
+    state_dict = OrderedDict({k: torch.tensor(v) for k, v in params_dict})
+    model.load_state_dict(state_dict, strict=False)
+    model.save_pretrained(save_path)
+    tokenizer.save_pretrained(save_path)
+    logger.info("Saved trained global LoRA adapter to %s", save_path)
 
 
 def extract_history_rows(
@@ -85,8 +111,14 @@ def extract_history_rows(
     return rows
 
 
-def run_sweep(config_path: str, rounds_override: int | None = None) -> Path:
-    """Execute the full (r, ε, α) sweep and write results to CSV."""
+def run_sweep(
+    config_path: str,
+    rounds_override: int | None = None,
+    tag: str | None = None,
+    output_dir: str | Path | None = None,
+    save_adapters: bool = True,
+) -> Path:
+    """Execute the full (r, ε, α) sweep and write results to CSV with automatic archiving."""
     config = load_config(config_path)
     device = detect_device()
 
@@ -102,12 +134,15 @@ def run_sweep(config_path: str, rounds_override: int | None = None) -> Path:
     total_configs = len(ranks) * len(epsilons) * len(alphas)
     logger.info("=" * 60)
     logger.info("  SWEEP CONFIGURATION")
-    logger.info("  Ranks:    %s", ranks)
-    logger.info("  Epsilons: %s", epsilons)
-    logger.info("  Alphas:   %s", alphas)
-    logger.info("  Rounds:   %d", num_rounds)
-    logger.info("  Total:    %d configurations", total_configs)
-    logger.info("  Device:   %s", device)
+    logger.info("  Ranks:         %s", ranks)
+    logger.info("  Epsilons:      %s", epsilons)
+    logger.info("  Alphas:        %s", alphas)
+    logger.info("  Rounds:        %d", num_rounds)
+    logger.info("  Save Adapters: %s", save_adapters)
+    logger.info("  Total:         %d configurations", total_configs)
+    logger.info("  Device:        %s", device)
+    if tag:
+        logger.info("  Run Tag:       %s", tag)
     logger.info("=" * 60)
 
     # Step 1: Download & tokenize ONCE
@@ -117,10 +152,18 @@ def run_sweep(config_path: str, rounds_override: int | None = None) -> Path:
     logger.info("Dataset ready: %d samples", len(dataset))
 
     # Prepare output directory
-    results_dir = Path("results")
-    results_dir.mkdir(exist_ok=True)
+    results_dir = Path(output_dir) if output_dir else Path("results")
+    results_dir.mkdir(exist_ok=True, parents=True)
     csv_path = results_dir / "sweep_results.csv"
     summary_path = results_dir / "sweep_summary.json"
+
+    # Historical runs archive
+    history_dir = results_dir / "history"
+    history_dir.mkdir(exist_ok=True)
+    timestamp_slug = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    tag_suffix = f"_{tag}" if tag else ""
+    archive_csv_path = history_dir / f"sweep_{timestamp_slug}{tag_suffix}.csv"
+    archive_summary_path = history_dir / f"summary_{timestamp_slug}{tag_suffix}.json"
 
     all_rows: list[dict] = []
     final_round_table: dict[str, dict[str, float]] = {}
@@ -170,11 +213,32 @@ def run_sweep(config_path: str, rounds_override: int | None = None) -> Path:
                 current_epsilon=current_epsilon,
             )
 
-            history = run_simulation(
-                client_fn=client_fn,
-                num_clients=num_clients,
-                num_rounds=num_rounds,
-            )
+            if save_adapters:
+                history, final_params = run_simulation(
+                    client_fn=client_fn,
+                    num_clients=num_clients,
+                    num_rounds=num_rounds,
+                    return_parameters=True,
+                )
+                if final_params is not None:
+                    model_dir = Path("saved_models") / f"model_r{rank}_eps{eps_label}_alpha{alpha:.1f}"
+                    try:
+                        save_lora_adapter(
+                            parameters_ndarrays=final_params,
+                            rank=rank,
+                            lora_alpha=config["lora"]["lora_alpha"],
+                            lora_dropout=config["lora"]["lora_dropout"],
+                            save_path=model_dir,
+                        )
+                    except Exception as e:
+                        logger.warning("Could not save adapter to %s: %s", model_dir, e)
+            else:
+                history = run_simulation(
+                    client_fn=client_fn,
+                    num_clients=num_clients,
+                    num_rounds=num_rounds,
+                    return_parameters=False,
+                )
 
             rows = extract_history_rows(history, rank, current_epsilon, alpha)
             all_rows.extend(rows)
@@ -199,16 +263,18 @@ def run_sweep(config_path: str, rounds_override: int | None = None) -> Path:
 
     sweep_elapsed = time.time() - sweep_start
 
-    # Step 3: Write CSV
-    with open(csv_path, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=CSV_COLUMNS)
-        writer.writeheader()
-        writer.writerows(all_rows)
-    logger.info("Results written to %s (%d rows)", csv_path, len(all_rows))
+    # Step 3: Write primary CSV and archive copy
+    for target_path in (csv_path, archive_csv_path):
+        with open(target_path, "w", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=CSV_COLUMNS)
+            writer.writeheader()
+            writer.writerows(all_rows)
+    logger.info("Results written to %s and archived to %s (%d rows)", csv_path, archive_csv_path, len(all_rows))
 
-    # Step 4: Write summary JSON
+    # Step 4: Write summary JSON and archive copy
     summary = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
+        "tag": tag,
         "config_path": config_path,
         "total_configs": total_configs,
         "rounds_per_config": num_rounds,
@@ -221,11 +287,22 @@ def run_sweep(config_path: str, rounds_override: int | None = None) -> Path:
             "alphas": alphas,
         },
     }
-    with open(summary_path, "w") as f:
-        json.dump(summary, f, indent=2)
-    logger.info("Summary written to %s", summary_path)
+    for target_path in (summary_path, archive_summary_path):
+        with open(target_path, "w") as f:
+            json.dump(summary, f, indent=2)
+    logger.info("Summary written to %s and %s", summary_path, archive_summary_path)
 
-    # Step 5: Print reference table
+    # Step 5: Automatically sync with web dashboard data.js if available
+    dashboard_data_js = Path("dashboard/data.js")
+    if dashboard_data_js.parent.exists():
+        try:
+            with open(dashboard_data_js, "w") as f:
+                f.write("window.INITIAL_SWEEP_DATA = " + json.dumps(all_rows, indent=2) + ";\n")
+            logger.info("Synced sweep results to %s for the comparison dashboard", dashboard_data_js)
+        except Exception as e:
+            logger.warning("Could not sync to dashboard/data.js: %s", e)
+
+    # Step 6: Print reference table
     logger.info("=" * 60)
     logger.info("  REFERENCE TABLE — Final-Round F1 Scores")
     logger.info("=" * 60)
@@ -261,8 +338,31 @@ def main():
         default=None,
         help="Override number of federation rounds (e.g., 2 for quick validation)",
     )
+    parser.add_argument(
+        "--tag",
+        type=str,
+        default=None,
+        help="Optional tag/name for this run (included in archive filename)",
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=str,
+        default=None,
+        help="Custom output directory (defaults to results/)",
+    )
+    parser.add_argument(
+        "--no-save-adapters",
+        action="store_true",
+        help="Skip saving trained LoRA adapters to saved_models/",
+    )
     args = parser.parse_args()
-    run_sweep(config_path=args.config, rounds_override=args.rounds)
+    run_sweep(
+        config_path=args.config,
+        rounds_override=args.rounds,
+        tag=args.tag,
+        output_dir=args.output_dir,
+        save_adapters=not args.no_save_adapters,
+    )
 
 
 if __name__ == "__main__":

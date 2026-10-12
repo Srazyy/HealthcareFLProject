@@ -9,20 +9,26 @@ env/
 # Jupyter
 .ipynb_checkpoints/
 
-# Data & results (ignore raw CSVs and oversized full pool, keep training parquet)
+# Data & results
 data/*
 !data/.gitkeep
 !data/medical_claims_3k.parquet
-*.csv
 data/pooled_clinical_data_full.parquet
+
+# Whitelist benchmark results and exported figures for git
 results/*
 !results/.gitkeep
+!results/sweep_results.csv
+!results/sweep_summary.json
+!results/plots/
+!results/plots/*
+!results/history/
+!results/history/*
 
-# Model checkpoints
+# Model checkpoints (keep tiny LoRA adapters, ignore large raw pytorch weights)
 *.pt
 *.pth
 *.bin
-*.safetensors
 checkpoints/
 
 # OS-specific

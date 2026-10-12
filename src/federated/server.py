@@ -38,24 +38,44 @@ def weighted_average(metrics: list[tuple[int, Metrics]]) -> Metrics:
     return aggregated
 
 
+import numpy as np
+from flwr.common import parameters_to_ndarrays
+
+
+class SaveModelFedAvg(fl.server.strategy.FedAvg):
+    """FedAvg strategy that captures the final aggregated parameter tensors."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.final_parameters: fl.common.Parameters | None = None
+
+    def aggregate_fit(self, server_round, results, failures):
+        parameters, metrics = super().aggregate_fit(server_round, results, failures)
+        if parameters is not None:
+            self.final_parameters = parameters
+        return parameters, metrics
+
+
 def run_simulation(
     client_fn: Callable[[Context], fl.client.Client | fl.client.NumPyClient] | Callable[[str], fl.client.Client | fl.client.NumPyClient],
     num_clients: int = 3,
     num_rounds: int = 5,
-) -> History:
+    return_parameters: bool = False,
+) -> History | tuple[History, list[np.ndarray] | None]:
     """Launches the central server and coordinates the simulation.
 
     Args:
         client_fn: Factory function mapping Flower Context to Client.
         num_clients: Total simulated hospital clients.
         num_rounds: Number of federated training rounds.
+        return_parameters: If True, returns a tuple of (History, list[np.ndarray] | None).
 
     Returns:
-        Simulation history containing metrics and loss.
+        Simulation history, or (history, final_parameters) if return_parameters=True.
     """
     logger.info("Starting Federated Learning simulation with %d hospitals...", num_clients)
 
-    strategy = fl.server.strategy.FedAvg(
+    strategy = SaveModelFedAvg(
         fraction_fit=1.0,
         fraction_evaluate=1.0,
         min_fit_clients=num_clients,
@@ -70,6 +90,19 @@ def run_simulation(
         config=fl.server.ServerConfig(num_rounds=num_rounds),
         strategy=strategy,
         client_resources={"num_cpus": 2},
+        ray_init_args={
+            "num_cpus": 2,
+            "object_store_memory": 512 * 1024 * 1024,
+            "include_dashboard": False,
+        },
     )
+
+    if return_parameters:
+        final_ndarrays = (
+            parameters_to_ndarrays(strategy.final_parameters)
+            if strategy.final_parameters is not None
+            else None
+        )
+        return history, final_ndarrays
 
     return history
