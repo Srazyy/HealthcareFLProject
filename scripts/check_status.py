@@ -71,15 +71,28 @@ def get_process_info():
 
 def get_log_progress():
     log_path = REPO_ROOT / "results" / "sweep_run.log"
+    saved_models_dir = REPO_ROOT / "saved_models"
+
+    saved_models = []
+    if saved_models_dir.exists():
+        saved_models = sorted([
+            d.name for d in saved_models_dir.iterdir()
+            if d.is_dir() and (d / "adapter_config.json").exists()
+        ])
+
     if not log_path.exists():
-        return None, None, []
+        return None, None, [], saved_models
 
     content = log_path.read_text(errors="ignore")
     lines = [line.strip() for line in content.splitlines() if line.strip()]
 
-    # Look for [X/Y] progress markers
+    # Explicit progress markers if present
     progress_matches = re.findall(r"\[(\d+)/(\d+)\]\s+(.+)", content)
     latest_progress = progress_matches[-1] if progress_matches else None
+
+    # Ground truth: count physical saved models on disk
+    completed_count = len(saved_models)
+    current_config = min(48, completed_count + 1)
 
     # Look for [ROUND X]
     round_matches = re.findall(r"\[ROUND\s+(\d+)\]", content)
@@ -87,7 +100,7 @@ def get_log_progress():
 
     # Last 5 meaningful lines
     tail_lines = lines[-5:] if len(lines) >= 5 else lines
-    return latest_progress, latest_round, tail_lines
+    return (current_config, completed_count, 48, latest_progress), latest_round, tail_lines, saved_models
 
 
 def main():
@@ -112,18 +125,24 @@ def main():
 
     print("-" * 70)
 
-    # 2. Progress from Log
-    latest_progress, latest_round, tail_lines = get_log_progress()
-    if latest_progress:
-        curr, total, details = latest_progress
-        percent = (int(curr) / int(total)) * 100 if int(total) > 0 else 0
-        print(f"  ● Config Grid Progress: [{curr}/{total}] ({percent:.1f}% Completed)")
-        print(f"  ● Active Configuration: {details}")
+    # 2. Progress from Log & Saved Adapters
+    progress_info, latest_round, tail_lines, saved_models = get_log_progress()
+    if progress_info:
+        curr, completed_count, total, explicit = progress_info
+        percent = (completed_count / total) * 100
+        print(f"  ● Config Grid Progress: Running Config [{curr}/{total}] ({completed_count} Finished, {percent:.1f}% Completed)")
+        if explicit:
+            _, _, details = explicit
+            print(f"  ● Active Details:      {details}")
+        if latest_round:
+            print(f"  ● Federation Round:     Round {latest_round} of 5 in progress for Config [{curr}]")
+        if saved_models:
+            print(f"  ● Saved LoRA Adapters:  {len(saved_models)} saved to disk:")
+            for m in saved_models[-3:]:
+                print(f"      ✔ saved_models/{m}")
     else:
-        print("  ● Config Grid Progress: [1/48] Initializing Grid Run (Round " + (latest_round or "1") + "/5)")
-
-    if latest_round:
-        print(f"  ● Federation Round:     Round {latest_round} of 5 in progress")
+        if latest_round:
+            print(f"  ● Federation Round:     Round {latest_round} of 5 in progress")
 
     print("-" * 70)
 
