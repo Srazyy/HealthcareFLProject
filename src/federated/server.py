@@ -89,9 +89,9 @@ def run_simulation(
         num_clients=num_clients,
         config=fl.server.ServerConfig(num_rounds=num_rounds),
         strategy=strategy,
-        client_resources={"num_cpus": 2.5},
+        client_resources={"num_cpus": 3.0},
         ray_init_args={
-            "num_cpus": 8,
+            "num_cpus": 9,
             "object_store_memory": 1024 * 1024 * 1024,
             "include_dashboard": False,
         },

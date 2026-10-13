@@ -36,8 +36,11 @@ from src.models.lora_model import setup_lora_model
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(name)s | %(levelname)s | %(message)s",
+    force=True,
 )
+logging.getLogger().setLevel(logging.INFO)
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 METRIC_KEYS = ("accuracy", "precision", "recall", "f1", "mcc", "auc_roc")
 CSV_COLUMNS = ["rank", "epsilon", "alpha", "round", *METRIC_KEYS, "loss"]
@@ -212,16 +215,14 @@ def run_sweep(
 
             # Auto-resume check: skip if adapter is already trained and saved
             if save_adapters and (model_dir / "adapter_config.json").exists():
-                logger.info(
-                    "[%d/%d] r=%d, ε=%s, α=%.2f — adapter exists at %s. Skipping (resuming from checkpoint)...",
-                    completed, total_configs, rank, eps_label, alpha, model_dir,
-                )
+                msg = f"[{completed}/{total_configs}] r={rank}, ε={eps_label}, α={alpha:.2f} — adapter exists at {model_dir}. Skipping (resuming from checkpoint)..."
+                print(msg, flush=True)
+                logger.info(msg)
                 continue
 
-            logger.info(
-                "[%d/%d] r=%d, ε=%s, α=%.2f — starting %d-round simulation...",
-                completed, total_configs, rank, eps_label, alpha, num_rounds,
-            )
+            msg = f"[{completed}/{total_configs}] r={rank}, ε={eps_label}, α={alpha:.2f} — starting {num_rounds}-round simulation..."
+            print(msg, flush=True)
+            logger.info(msg)
             run_start = time.time()
 
             client_fn = build_client_fn(
