@@ -103,6 +103,19 @@ def run_simulation(
             if strategy.final_parameters is not None
             else None
         )
+        try:
+            import ray
+            if ray.is_initialized():
+                ray.shutdown()
+        except Exception:
+            pass
         return history, final_ndarrays
 
+    try:
+        import ray
+        if ray.is_initialized():
+            ray.shutdown()
+    except Exception:
+        pass
     return history
+

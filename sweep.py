@@ -15,11 +15,15 @@ import argparse
 import csv
 import json
 import logging
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import sys
 import time
 from collections import OrderedDict
 from datetime import datetime, timezone
 from itertools import product
-from pathlib import Path
 
 import numpy as np
 import torch
@@ -44,6 +48,18 @@ logger.setLevel(logging.INFO)
 
 METRIC_KEYS = ("accuracy", "precision", "recall", "f1", "mcc", "auc_roc")
 CSV_COLUMNS = ["rank", "epsilon", "alpha", "round", *METRIC_KEYS, "loss"]
+
+
+def cleanup_ray_temp():
+    """Removes dangling Ray temporary and session files to protect disk space."""
+    try:
+        ray_dir = Path("/tmp/ray")
+        if ray_dir.exists():
+            for p in ray_dir.iterdir():
+                if p.is_dir() and p.name.startswith("session_"):
+                    shutil.rmtree(p, ignore_errors=True)
+    except Exception:
+        pass
 
 
 def save_lora_adapter(
@@ -122,6 +138,17 @@ def run_sweep(
     save_adapters: bool = True,
 ) -> Path:
     """Execute the full (r, ε, α) sweep and write results to CSV with automatic archiving."""
+    if sys.platform == "darwin":
+        try:
+            subprocess.Popen(
+                ["caffeinate", "-dims", "-w", str(os.getpid())],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            logger.info("Activated macOS caffeinate assertion (preventing sleep while sweep runs)")
+        except Exception as e:
+            logger.warning("Could not activate caffeinate: %s", e)
+
     config = load_config(config_path)
     device = detect_device()
 
@@ -153,6 +180,10 @@ def run_sweep(
     dataset, tokenizer = download_and_tokenize()
     labels = np.array(dataset["labels"])
     logger.info("Dataset ready: %d samples", len(dataset))
+
+    # Protect simulation workers from network stalls and HF Hub timeouts
+    os.environ["HF_HUB_OFFLINE"] = "1"
+    os.environ["TRANSFORMERS_OFFLINE"] = "1"
 
     # Prepare output directory
     results_dir = Path(output_dir) if output_dir else Path("results")
@@ -218,6 +249,18 @@ def run_sweep(
                 msg = f"[{completed}/{total_configs}] r={rank}, ε={eps_label}, α={alpha:.2f} — adapter exists at {model_dir}. Skipping (resuming from checkpoint)..."
                 print(msg, flush=True)
                 logger.info(msg)
+                matching = [
+                    row for row in all_rows
+                    if str(row.get("rank")) == str(rank)
+                    and str(row.get("epsilon")) == eps_label
+                    and abs(float(row.get("alpha", -1)) - alpha) < 1e-4
+                ]
+                if matching:
+                    final_f1 = matching[-1].get("f1", "N/A")
+                    key = f"ε={eps_label}, α={alpha:.1f}"
+                    if key not in final_round_table:
+                        final_round_table[key] = {}
+                    final_round_table[key][f"r={rank}"] = final_f1
                 continue
 
             msg = f"[{completed}/{total_configs}] r={rank}, ε={eps_label}, α={alpha:.2f} — starting {num_rounds}-round simulation..."
@@ -274,6 +317,7 @@ def run_sweep(
                     logger.warning("Could not incrementally write to %s: %s", csv_path, e)
 
             elapsed = time.time() - run_start
+            cleanup_ray_temp()
             # Capture final-round F1 for the reference table
             if rows:
                 final_f1 = rows[-1].get("f1", "N/A")

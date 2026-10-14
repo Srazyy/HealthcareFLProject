@@ -69,6 +69,23 @@ def get_process_info():
     return None
 
 
+def check_caffeinate_status(pid: str | None = None) -> bool:
+    try:
+        res = subprocess.run(
+            ["pgrep", "-fla", "caffeinate"],
+            capture_output=True,
+            text=True,
+        )
+        for line in res.stdout.splitlines():
+            if pid and str(pid) in line:
+                return True
+            if "caffeinate" in line and ("-dim" in line or "-s" in line):
+                return True
+    except Exception:
+        pass
+    return False
+
+
 def get_log_progress():
     log_path = REPO_ROOT / "results" / "sweep_run.log"
     saved_models_dir = REPO_ROOT / "saved_models"
@@ -114,8 +131,12 @@ def main():
         stat_desc = "RUNNING (Active)" if "R" in proc["stat"] or "S" in proc["stat"] or "U" in proc["stat"] else f"STOPPED/PAUSED ({proc['stat']})"
         print(f"  ● Orchestrator Process: PID {proc['pid']}  [{stat_desc}]")
         print(f"    Elapsed Uptime:       {proc['etime']}")
+        is_caff = check_caffeinate_status(proc["pid"])
+        caff_str = "ACTIVE (Sleep Blocked via Caffeinate)" if is_caff else "INACTIVE (System May Sleep)"
+        print(f"    Sleep Prevention:     {caff_str}")
+        print(f"    Hardware Compute:     Apple Silicon MPS (Metal GPU Acceleration)")
         print(f"    Sim Cluster Workers:  {proc.get('workers', 0)} Ray Actors Active")
-        print(f"    Aggregate CPU Usage:  {proc.get('total_cpu', 0.0):.1f}%   |   Cluster RAM: {proc.get('total_mem', 0.0):.1f}%")
+        print(f"    Aggregate CPU Usage:  {proc.get('total_cpu', 0.0):.1f}% (GPU offloaded) | Cluster RAM: {proc.get('total_mem', 0.0):.1f}%")
         print(f"    Active Command:       {proc['cmd']}")
         if "T" in proc["stat"]:
             print("\n  ⚠️  WARNING: Process is SUSPENDED (STAT=T).")

@@ -29,12 +29,20 @@ def setup_lora_model(
     """
     logger.info("Loading base model: %s...", model_name)
 
-    # 1. Load the tokenizer and the base model
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    base_model = AutoModelForSequenceClassification.from_pretrained(
-        model_name,
-        num_labels=num_labels,
-    )
+    # 1. Load the tokenizer and the base model (prefer local cache to avoid network stalls/timeouts)
+    try:
+        tokenizer = AutoTokenizer.from_pretrained(model_name, local_files_only=True)
+        base_model = AutoModelForSequenceClassification.from_pretrained(
+            model_name,
+            num_labels=num_labels,
+            local_files_only=True,
+        )
+    except Exception:
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        base_model = AutoModelForSequenceClassification.from_pretrained(
+            model_name,
+            num_labels=num_labels,
+        )
 
     # 2. Configure the LoRA adapters
     peft_config = LoraConfig(

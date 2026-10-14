@@ -1,17 +1,22 @@
 {
-  "timestamp": "2026-09-15T19:57:16.758931+00:00",
-  "config_path": "configs/config.yaml",
-  "total_configs": 12,
-  "rounds_per_config": 2,
-  "total_rows": 24,
-  "total_runtime_seconds": 1844.8,
+  "timestamp": "2026-10-14T04:40:01.234342+00:00",
+  "tag": "full_publication",
+  "config_path": "configs/full_sweep_config.yaml",
+  "total_configs": 48,
+  "rounds_per_config": 5,
+  "total_rows": 240,
+  "total_runtime_seconds": 10956.8,
   "device": "mps",
   "grid": {
     "ranks": [
+      2,
       4,
-      8
+      8,
+      16
     ],
     "epsilons": [
+      1.0,
+      3.0,
       8.0,
       null
     ],
