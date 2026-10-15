@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Healthcare FL Benchmark - Clinical Simulator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700;9..144,900&family=Geist:wght@300;400;500;600;700&family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+  <div class="dashboard-container">
+    
+    <!-- Masthead & Navigation Bar -->
+    <header class="dashboard-header">
+      <div class="masthead-bar">
+        <span class="masthead-title">Federated Clinical Intelligence Benchmark // Empirical Lab</span>
+        <div class="masthead-meta">Module: <span>Acute Presentation Simulator</span> &bull; Cohort: <span>Multi-Center Real-World Vignettes</span></div>
+      </div>
+      <nav class="main-nav" aria-label="Main Navigation">
+        <a href="index.html" class="nav-tab-link">Hospital Silos</a>
+        <a href="cases.html" class="nav-tab-link active">Clinical Simulator</a>
+        <a href="tradeoffs.html" class="nav-tab-link">Parameter Tradeoffs</a>
+        <a href="comparator.html" class="nav-tab-link">Model Comparator</a>
+      </nav>
+    </header>
+
+    <main>
+      <!-- Hero Section with 12-Column Desktop Grid Asymmetry -->
+      <section class="section-wrapper" id="cases-hero-section">
+        <div class="editorial-grid-12">
+          <!-- 5 Columns: Left-aligned Display Heading & Clinical Context -->
+          <div class="col-editorial-5">
+            <span class="kicker-label">Acute Care Decision Support</span>
+            <h1 class="display-heading">Clinical Presentation Triage Simulator</h1>
+            <p class="editorial-lead">
+              Stress-testing localized institutional models against federated intelligence on borderline clinical notes. Institutional sampling bias causes local models to misclassify presentations outside their customary demographic distribution.
+            </p>
+            <div class="editorial-meta-box">
+              <strong>Interactive Triage:</strong> Adjust global heterogeneity (&alpha;), rank (r), and DP budget (&epsilon;) to inspect real-time shifts in diagnostic confidence across all 4 institutions.
+            </div>
+          </div>
+
+          <!-- 7 Columns: Parameter Calibration Controls -->
+          <div class="col-data-7">
+            <div class="discrete-sliders-panel">
+              <!-- Slider 1: Dirichlet Skew (Alpha) -->
+              <div class="slider-unit">
+                <div class="slider-header-row">
+                  <span class="slider-title">Dirichlet Heterogeneity (α)</span>
+                  <span class="slider-badge" id="badge-slider-alpha">α = 0.1</span>
+                </div>
+                <div class="slider-track-wrap">
+                  <input type="range" class="stepped-range" id="slider-alpha" min="0" max="2" step="1" value="0">
+                  <div class="slider-ticks-row">
+                    <span class="slider-tick-label active" data-slider="alpha" data-val="0">0.1 (Extreme Skew)</span>
+                    <span class="slider-tick-label" data-slider="alpha" data-val="1">1.0 (Moderate Skew)</span>
+                    <span class="slider-tick-label" data-slider="alpha" data-val="2">100.0 (Uniform IID)</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Slider 2: LoRA Rank (r) -->
+              <div class="slider-unit">
+                <div class="slider-header-row">
+                  <span class="slider-title">LoRA Adaptation Rank (r)</span>
+                  <span class="slider-badge" id="badge-slider-rank">r = 8</span>
+                </div>
+                <div class="slider-track-wrap">
+                  <input type="range" class="stepped-range" id="slider-rank" min="0" max="3" step="1" value="2">
+                  <div class="slider-ticks-row">
+                    <span class="slider-tick-label" data-slider="rank" data-val="0">r = 2</span>
+                    <span class="slider-tick-label" data-slider="rank" data-val="1">r = 4</span>
+                    <span class="slider-tick-label active" data-slider="rank" data-val="2">r = 8</span>
+                    <span class="slider-tick-label" data-slider="rank" data-val="3">r = 16</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Slider 3: Privacy Budget (Epsilon) -->
+              <div class="slider-unit">
+                <div class="slider-header-row">
+                  <span class="slider-title">Differential Privacy (ε)</span>
+                  <span class="slider-badge" id="badge-slider-eps">ε = ∞ (No DP)</span>
+                </div>
+                <div class="slider-track-wrap">
+                  <input type="range" class="stepped-range" id="slider-eps" min="0" max="3" step="1" value="0">
+                  <div class="slider-ticks-row">
+                    <span class="slider-tick-label active" data-slider="eps" data-val="0">No DP</span>
+                    <span class="slider-tick-label" data-slider="eps" data-val="1">ε = 8.0</span>
+                    <span class="slider-tick-label" data-slider="eps" data-val="2">ε = 3.0</span>
+                    <span class="slider-tick-label" data-slider="eps" data-val="3">ε = 1.0</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Case Presentation & Comparative Triage -->
+      <section class="section-wrapper" id="clinical-presentation-section">
+        <div class="case-tester-card">
+          <!-- Case Selection Tabs -->
+          <div class="case-tabs-wrapper" id="case-tabs-container">
+            <!-- Populated dynamically via app.js -->
+          </div>
+
+          <!-- Active Case Details (5 cols) & 4-Model Predictions (7 cols) -->
+          <div class="case-content-layout">
+            <!-- Left: Clinical Presentation & Ground Truth -->
+            <div class="case-snippet-box">
+              <div class="case-header-row">
+                <span class="case-title-text" id="case-active-title">Case Title</span>
+                <span class="case-badge-actual surgical" id="case-active-badge">Surgical</span>
+              </div>
+              <div class="case-snippet-text" id="case-active-text">
+                Clinical note text...
+              </div>
+              <div class="case-note-text" id="case-active-note">
+                Physician analysis note...
+              </div>
+            </div>
+
+            <!-- Right: 4 Model Prediction Cards -->
+            <div class="case-predictions-grid" id="case-predictions-container">
+              <!-- Populated dynamically via app.js -->
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+  </div>
+
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -3,323 +3,155 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FL Healthcare Benchmark — Interactive Comparison Dashboard</title>
-  <meta name="description" content="Interactive comparative analysis dashboard for Federated Learning in Healthcare with LoRA parameter compression and Differential Privacy.">
+  <title>Healthcare FL Benchmark - Hospital Silos</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700;9..144,900&family=Geist:wght@300;400;500;600;700&family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
-  <!-- Chart.js CDN with SRI -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
   <div class="dashboard-container">
     
-    <!-- Header -->
-    <header class="dashboard-header" id="dashboard-header">
-      <div class="brand-wrapper">
-        <div class="brand-icon">
-          <svg viewBox="0 0 24 24">
-            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/>
-          </svg>
-        </div>
-        <div class="brand-title">
-          <h1>Healthcare FL Benchmark</h1>
-          <div class="brand-subtitle">
-            <span>Federated LoRA + DP Empirical Tradeoff Explorer</span>
-            <span class="badge-live" id="live-status-badge">Live Benchmark</span>
-          </div>
-        </div>
+    <!-- Masthead & Navigation Bar -->
+    <header class="dashboard-header">
+      <div class="masthead-bar">
+        <span class="masthead-title">Federated Clinical Intelligence Benchmark // Empirical Lab</span>
+        <div class="masthead-meta">Evaluation Cohort: <span>12,000 Inpatient Cases</span> &bull; Status: <span>Converged</span></div>
       </div>
-
-      <div class="header-actions">
-        <label class="btn file-input-wrapper" id="btn-upload-label" title="Load custom sweep CSV or JSON">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-            <polyline points="17 8 12 3 7 8"></polyline>
-            <line x1="12" y1="3" x2="12" y2="15"></line>
-          </svg>
-          Upload Run CSV
-          <input type="file" id="file-upload-input" accept=".csv,.json">
-        </label>
-        <button class="btn" id="btn-reload-data" title="Reload results/sweep_results.csv">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M23 4v6h-6"></path>
-            <path d="M1 20v-6h6"></path>
-            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
-          </svg>
-          Reload Default
-        </button>
-        <button class="btn btn-primary" id="btn-sweep-guide">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polygon points="5 3 19 12 5 21 5 3"></polygon>
-          </svg>
-          Run Sweep Guide
-        </button>
-      </div>
+      <nav class="main-nav" aria-label="Main Navigation">
+        <a href="index.html" class="nav-tab-link active">Hospital Silos</a>
+        <a href="cases.html" class="nav-tab-link">Clinical Simulator</a>
+        <a href="tradeoffs.html" class="nav-tab-link">Parameter Tradeoffs</a>
+        <a href="comparator.html" class="nav-tab-link">Model Comparator</a>
+      </nav>
     </header>
 
     <main>
-      <!-- KPI Overview Cards -->
-      <section class="kpi-grid" id="kpi-overview-section" aria-label="Executive Metrics Overview">
-        <div class="kpi-card emerald" id="kpi-best-card">
-          <div class="kpi-header">
-            <span class="kpi-label">Top Performing Config</span>
-            <span class="kpi-icon">🏆</span>
-          </div>
-          <div class="kpi-value" id="kpi-best-value">—</div>
-          <div class="kpi-subtext" id="kpi-best-subtext">Loading benchmark...</div>
-        </div>
-
-        <div class="kpi-card cyan" id="kpi-dp-card">
-          <div class="kpi-header">
-            <span class="kpi-label">Privacy Budget Penalty</span>
-            <span class="kpi-icon">🔒</span>
-          </div>
-          <div class="kpi-value" id="kpi-dp-value">—</div>
-          <div class="kpi-subtext" id="kpi-dp-subtext">DP (ε=8.0) vs Baseline (No DP)</div>
-        </div>
-
-        <div class="kpi-card amber" id="kpi-skew-card">
-          <div class="kpi-header">
-            <span class="kpi-label">Heterogeneity Drop</span>
-            <span class="kpi-icon">🏥</span>
-          </div>
-          <div class="kpi-value" id="kpi-skew-value">—</div>
-          <div class="kpi-subtext" id="kpi-skew-subtext">Dirichlet α=0.1 vs α=100.0 (IID)</div>
-        </div>
-
-        <div class="kpi-card purple" id="kpi-lora-card">
-          <div class="kpi-header">
-            <span class="kpi-label">LoRA Rank Gain</span>
-            <span class="kpi-icon">⚡</span>
-          </div>
-          <div class="kpi-value" id="kpi-lora-value">—</div>
-          <div class="kpi-subtext" id="kpi-lora-subtext">Rank r=8 vs r=4 efficiency delta</div>
-        </div>
-      </section>
-
-      <!-- Global Controls & Filters -->
-      <nav class="controls-bar" id="controls-nav" aria-label="Dashboard Filters">
-        <div class="controls-group">
-          <span class="filter-label">Primary Metric:</span>
-          <select class="select-custom" id="metric-select">
-            <option value="f1" selected>F1-Score (Primary Clinical Metric)</option>
-            <option value="mcc">Matthews Correlation Coefficient (MCC)</option>
-            <option value="auc_roc">AUC-ROC (Discriminative Ability)</option>
-            <option value="accuracy">Accuracy</option>
-            <option value="precision">Precision</option>
-            <option value="recall">Recall</option>
-            <option value="loss">Loss (Convergence)</option>
-          </select>
-        </div>
-
-        <div class="controls-group">
-          <span class="filter-label">Round View:</span>
-          <select class="select-custom" id="round-view-select">
-            <option value="final" selected>Final Round (Converged Benchmark)</option>
-            <option value="all">All Rounds</option>
-          </select>
-        </div>
-
-        <div class="controls-group">
-          <span class="filter-label">Dirichlet α:</span>
-          <div class="pill-group" id="alpha-pill-group">
-            <button class="pill-btn active" data-alpha="all" id="alpha-filter-all">All</button>
-            <button class="pill-btn" data-alpha="0.1" id="alpha-filter-01">0.1 (Extreme Skew)</button>
-            <button class="pill-btn" data-alpha="1.0" id="alpha-filter-10">1.0 (Moderate)</button>
-            <button class="pill-btn" data-alpha="100.0" id="alpha-filter-100">100.0 (~IID)</button>
-          </div>
-        </div>
-
-        <div class="controls-group">
-          <span class="filter-label">Privacy (ε):</span>
-          <div class="pill-group" id="eps-pill-group">
-            <button class="pill-btn active" data-eps="all" id="eps-filter-all">All</button>
-            <button class="pill-btn" data-eps="dp" id="eps-filter-dp">DP (ε=8)</button>
-            <button class="pill-btn" data-eps="none" id="eps-filter-none">No DP (ε=∞)</button>
-          </div>
-        </div>
-      </nav>
-
-      <!-- Section: Head-to-Head Comparator ("Versus Tool") -->
-      <section class="section-wrapper" id="comparator-section">
-        <div class="section-header">
-          <h2 class="section-title">
-            <span>Side-by-Side Configuration Comparator</span>
-            <span class="section-badge">Head-to-Head</span>
-          </h2>
-          <span style="font-size: 0.8rem; color: var(--text-muted);">Compare trade-offs and deltas between any two hospital setups</span>
-        </div>
-
-        <div class="versus-container">
-          <!-- Config A Card -->
-          <div class="versus-card" id="config-a-card">
-            <div class="versus-header">
-              <span class="versus-tag a">Baseline / Config A</span>
-              <select class="select-custom" id="select-config-a"></select>
-            </div>
-            <div class="metric-comparison-list" id="metrics-list-a">
-              <!-- Populated dynamically -->
+      <!-- Hero Section with 12-Column Desktop Grid Asymmetry -->
+      <section class="section-wrapper" id="silo-hero-section">
+        <div class="editorial-grid-12">
+          <!-- 5 Columns: Left-aligned Display Heading & Narrative -->
+          <div class="col-editorial-5">
+            <span class="kicker-label">Distribution Shift & Institutional Silos</span>
+            <h1 class="display-heading">Isolated Hospital Training vs. Federated Collaboration</h1>
+            <p class="editorial-lead">
+              Quantifying diagnostic performance collapse across non-IID healthcare centers. Local clinical models suffer severe demographic overfitting on specialized intakes, whereas privacy-preserving LoRA aggregation preserves cross-institutional generalization.
+            </p>
+            <div class="editorial-meta-box">
+              <strong>Evaluation Framework:</strong> 3 distinct clinical cohorts (Surgical, Medical, Regional) benchmarked across 48 parametric configurations under strict Differential Privacy (&epsilon;) constraints.
             </div>
           </div>
 
-          <!-- Config B Card -->
-          <div class="versus-card" id="config-b-card">
-            <div class="versus-header">
-              <span class="versus-tag b">Comparison / Config B</span>
-              <select class="select-custom" id="select-config-b"></select>
-            </div>
-            <div class="metric-comparison-list" id="metrics-list-b">
-              <!-- Populated dynamically with deltas -->
-            </div>
-          </div>
-        </div>
+          <!-- 7 Columns: Parameter Calibration Controls -->
+          <div class="col-data-7">
+            <div class="discrete-sliders-panel">
+              <!-- Slider 1: Dirichlet Skew (Alpha) -->
+              <div class="slider-unit">
+                <div class="slider-header-row">
+                  <span class="slider-title">Dirichlet Heterogeneity (α)</span>
+                  <span class="slider-badge" id="badge-slider-alpha">α = 0.1</span>
+                </div>
+                <div class="slider-track-wrap">
+                  <input type="range" class="stepped-range" id="slider-alpha" min="0" max="2" step="1" value="0">
+                  <div class="slider-ticks-row">
+                    <span class="slider-tick-label active" data-slider="alpha" data-val="0">0.1 (Extreme Skew)</span>
+                    <span class="slider-tick-label" data-slider="alpha" data-val="1">1.0 (Moderate Skew)</span>
+                    <span class="slider-tick-label" data-slider="alpha" data-val="2">100.0 (Uniform IID)</span>
+                  </div>
+                </div>
+              </div>
 
-        <!-- Radar / Multi-Metric Bar Comparison Chart -->
-        <div class="chart-card" id="versus-radar-card">
-          <div class="chart-header">
-            <div>
-              <div class="chart-title">Config A vs Config B — Full Clinical Profile Radar</div>
-              <div class="chart-desc">Overlaid multi-metric performance across F1, MCC, AUC-ROC, Accuracy, Precision, Recall</div>
-            </div>
-          </div>
-          <div class="chart-canvas-wrapper" style="height: 340px;">
-            <canvas id="versus-radar-chart"></canvas>
-          </div>
-        </div>
-      </section>
+              <!-- Slider 2: LoRA Rank (r) -->
+              <div class="slider-unit">
+                <div class="slider-header-row">
+                  <span class="slider-title">LoRA Adaptation Rank (r)</span>
+                  <span class="slider-badge" id="badge-slider-rank">r = 8</span>
+                </div>
+                <div class="slider-track-wrap">
+                  <input type="range" class="stepped-range" id="slider-rank" min="0" max="3" step="1" value="2">
+                  <div class="slider-ticks-row">
+                    <span class="slider-tick-label" data-slider="rank" data-val="0">r = 2</span>
+                    <span class="slider-tick-label" data-slider="rank" data-val="1">r = 4</span>
+                    <span class="slider-tick-label active" data-slider="rank" data-val="2">r = 8</span>
+                    <span class="slider-tick-label" data-slider="rank" data-val="3">r = 16</span>
+                  </div>
+                </div>
+              </div>
 
-      <!-- Section: Heatmaps & Multi-Branch Tradeoffs -->
-      <section class="section-wrapper" id="tradeoffs-section">
-        <div class="section-header">
-          <h2 class="section-title">
-            <span>2D Empirical Benchmark Heatmaps</span>
-            <span class="section-badge">LoRA (r) × Privacy (ε) × Dirichlet (α)</span>
-          </h2>
-          <span style="font-size: 0.8rem; color: var(--text-muted);" id="heatmap-metric-indicator">Metric: F1-Score</span>
-        </div>
-
-        <div class="heatmap-grid-container" id="heatmaps-container">
-          <!-- 3 Heatmap cards generated dynamically for each alpha -->
-        </div>
-      </section>
-
-      <!-- Section: Convergence Trajectories & Tradeoff Frontier -->
-      <section class="section-wrapper" id="trajectories-section">
-        <div class="charts-grid-2col">
-          <!-- Convergence Line Chart -->
-          <div class="chart-card" id="convergence-chart-card">
-            <div class="chart-header">
-              <div>
-                <div class="chart-title">Round-by-Round Convergence Trajectory</div>
-                <div class="chart-desc" id="convergence-desc">Tracking validation progress across federation rounds</div>
+              <!-- Slider 3: Privacy Budget (Epsilon) -->
+              <div class="slider-unit">
+                <div class="slider-header-row">
+                  <span class="slider-title">Differential Privacy (ε)</span>
+                  <span class="slider-badge" id="badge-slider-eps">ε = ∞ (No DP)</span>
+                </div>
+                <div class="slider-track-wrap">
+                  <input type="range" class="stepped-range" id="slider-eps" min="0" max="3" step="1" value="0">
+                  <div class="slider-ticks-row">
+                    <span class="slider-tick-label active" data-slider="eps" data-val="0">No DP</span>
+                    <span class="slider-tick-label" data-slider="eps" data-val="1">ε = 8.0</span>
+                    <span class="slider-tick-label" data-slider="eps" data-val="2">ε = 3.0</span>
+                    <span class="slider-tick-label" data-slider="eps" data-val="3">ε = 1.0</span>
+                  </div>
+                </div>
               </div>
             </div>
-            <div class="chart-canvas-wrapper">
-              <canvas id="convergence-line-chart"></canvas>
-            </div>
-          </div>
-
-          <!-- 3-Way Tradeoff Bar Chart -->
-          <div class="chart-card" id="tradeoff-bar-card">
-            <div class="chart-header">
-              <div>
-                <div class="chart-title">LoRA Rank vs Privacy Impact Frontier</div>
-                <div class="chart-desc">How adaptation capacity balances differential privacy noise under non-IID data</div>
-              </div>
-            </div>
-            <div class="chart-canvas-wrapper">
-              <canvas id="tradeoff-bar-chart"></canvas>
-            </div>
           </div>
         </div>
       </section>
 
-      <!-- Section: Searchable & Sortable Data Table -->
-      <section class="section-wrapper" id="table-section">
-        <div class="table-card">
-          <div class="table-toolbar">
-            <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-              <h2 class="section-title" style="margin: 0;">Tabular Benchmark Ledger</h2>
-              <input type="text" class="search-input" id="table-search-input" placeholder="Search rank, eps, alpha...">
+      <!-- Hospital Profile Plinths Section -->
+      <section class="section-wrapper" id="profiles-section">
+        <div class="section-header">
+          <span class="kicker-label">Institutional Cohort Profiles</span>
+          <h2 class="section-title">Local Institutional Bias vs. Global Federated Resilience</h2>
+          <p class="section-desc">Comparison of intake distribution and generalization capability on external validation data.</p>
+        </div>
+
+        <!-- 4 Hospital Profile Plinths -->
+        <div class="hospital-cards-grid" id="hospital-cards-container">
+          <!-- Populated dynamically via app.js -->
+        </div>
+      </section>
+
+      <!-- Silo Comparative Charts Grid -->
+      <section class="section-wrapper" id="charts-section">
+        <div class="section-header">
+          <span class="kicker-label">Diagnostic Multi-Metric Evaluation</span>
+          <h2 class="section-title">Comparative Clinical Frontiers</h2>
+          <p class="section-desc">Radar analysis and class-specific sensitivity distributions under selected non-IID conditions.</p>
+        </div>
+
+        <div class="silo-charts-grid">
+          <!-- Radar Chart -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <div class="chart-title">Diagnostic Profile Comparison</div>
+              <div class="chart-desc">Macro F1, Accuracy, AUC-ROC, Surgical and Medical Recall</div>
             </div>
-            <div style="display: flex; gap: 10px;">
-              <button class="btn" id="btn-export-csv">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                  <polyline points="7 10 12 15 17 10"></polyline>
-                  <line x1="12" y1="15" x2="12" y2="3"></line>
-                </svg>
-                Export CSV
-              </button>
+            <div class="chart-canvas-wrapper">
+              <canvas id="silo-radar-chart"></canvas>
             </div>
           </div>
 
-          <div class="table-responsive">
-            <table class="data-table" id="benchmark-data-table">
-              <thead>
-                <tr>
-                  <th data-col="rank" class="sortable">Rank (r)</th>
-                  <th data-col="epsilon" class="sortable">Privacy (ε)</th>
-                  <th data-col="alpha" class="sortable">Dirichlet (α)</th>
-                  <th data-col="round" class="sortable">Round</th>
-                  <th data-col="f1" class="sortable sorted-desc">F1-Score</th>
-                  <th data-col="mcc" class="sortable">MCC</th>
-                  <th data-col="auc_roc" class="sortable">AUC-ROC</th>
-                  <th data-col="accuracy" class="sortable">Accuracy</th>
-                  <th data-col="precision" class="sortable">Precision</th>
-                  <th data-col="recall" class="sortable">Recall</th>
-                  <th data-col="loss" class="sortable">Loss</th>
-                </tr>
-              </thead>
-              <tbody id="table-body">
-                <!-- Dynamically populated rows -->
-              </tbody>
-            </table>
+          <!-- Sensitivity Bar Chart -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <div class="chart-title">Class Sensitivity Distribution (Surgical vs Medical)</div>
+              <div class="chart-desc">Quantifying institutional blindspots in diagnostic triage</div>
+            </div>
+            <div class="chart-canvas-wrapper">
+              <canvas id="silo-sensitivity-chart"></canvas>
+            </div>
           </div>
         </div>
       </section>
     </main>
 
-    <!-- Run Sweep Modal Guide -->
-    <div class="modal-overlay" id="sweep-modal-overlay">
-      <div class="modal-card">
-        <div class="modal-header">
-          <h3 class="modal-title">How to Run & Save Benchmark Sweeps</h3>
-          <button class="modal-close" id="modal-close-btn">&times;</button>
-        </div>
-        <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 14px;">
-          The benchmark runner iterates over the (r, ε, α) grid, trains the simulated hospital clients using Flower and PyTorch MPS/CPU, and aggregates results.
-        </p>
-        
-        <h4 style="font-size: 0.85rem; color: #ffffff; margin-top: 10px;">1. Standard 2-Round Fast Sweep (~30 min):</h4>
-        <div class="code-snippet">.venv/bin/python sweep.py --rounds 2</div>
-
-        <h4 style="font-size: 0.85rem; color: #ffffff; margin-top: 10px;">2. Full 5-Round Publication Sweep (Background / Detached):</h4>
-        <div class="code-snippet">nohup .venv/bin/python sweep.py > results/sweep_run.log 2>&1 &</div>
-
-        <h4 style="font-size: 0.85rem; color: #ffffff; margin-top: 10px;">3. Where Results Are Saved:</h4>
-        <ul style="color: var(--text-secondary); font-size: 0.85rem; margin-left: 20px; line-height: 1.6;">
-          <li><code style="color: var(--accent-cyan);">results/sweep_results.csv</code>: Raw per-round metrics.</li>
-          <li><code style="color: var(--accent-cyan);">results/sweep_summary.json</code>: Run runtime, grid, hardware timestamp.</li>
-          <li><code style="color: var(--accent-cyan);">results/history/</code>: Timestamped archive snapshots.</li>
-        </ul>
-
-        <div style="margin-top: 20px; text-align: right;">
-          <button class="btn btn-primary" id="modal-ok-btn">Got It</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Footer -->
-    <footer class="dashboard-footer">
-      Healthcare Federated Learning Research Benchmark &bull; Privacy-Preserving Clinical NLP &bull; DeepMind Antigravity IDE
-    </footer>
-
   </div>
 
-  <!-- Fallback Embedded Data -->
   <script src="data.js"></script>
-  <!-- Application Logic -->
   <script src="app.js"></script>
 </body>
 </html>

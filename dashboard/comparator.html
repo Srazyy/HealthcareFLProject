@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Healthcare FL Benchmark - Model Comparator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700;9..144,900&family=Geist:wght@300;400;500;600;700&family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+  <div class="dashboard-container">
+    
+    <!-- Masthead & Navigation Bar -->
+    <header class="dashboard-header">
+      <div class="masthead-bar">
+        <span class="masthead-title">Federated Clinical Intelligence Benchmark // Empirical Lab</span>
+        <div class="masthead-meta">Module: <span>Ablation Comparator</span> &bull; Mode: <span>Head-to-Head Differential</span></div>
+      </div>
+      <nav class="main-nav" aria-label="Main Navigation">
+        <a href="index.html" class="nav-tab-link">Hospital Silos</a>
+        <a href="cases.html" class="nav-tab-link">Clinical Simulator</a>
+        <a href="tradeoffs.html" class="nav-tab-link">Parameter Tradeoffs</a>
+        <a href="comparator.html" class="nav-tab-link active">Model Comparator</a>
+      </nav>
+    </header>
+
+    <main>
+      <!-- Hero Section with 12-Column Desktop Grid Asymmetry -->
+      <section class="section-wrapper" id="comparator-hero-section">
+        <div class="editorial-grid-12">
+          <!-- 5 Columns: Left-aligned Display Heading & Comparative Rationale -->
+          <div class="col-editorial-5">
+            <span class="kicker-label">Head-to-Head Differential Diagnostics</span>
+            <h1 class="display-heading">Side-by-Side Model Configuration Comparator</h1>
+            <p class="editorial-lead">
+              Direct delta analysis between baseline and privacy-constrained permutations. Evaluate the precise degradation or margin of safety introduced by differential privacy noise injection or rank constriction across all validation metrics.
+            </p>
+            <div class="editorial-meta-box">
+              <strong>Ablation Metrics:</strong> Macro F1, Matthews Correlation Coefficient (MCC), AUC-ROC, Accuracy, Precision, Recall, and Aggregated Validation Loss.
+            </div>
+          </div>
+
+          <!-- 7 Columns: Comparative Guide / Scannable Overview -->
+          <div class="col-data-7">
+            <div class="editorial-meta-box" style="background-color: var(--bg-secondary); padding: 1.5rem;">
+              <span class="kicker-label" style="margin-bottom: 0.5rem;">Comparative Analysis Protocol</span>
+              <p style="font-size: 0.875rem; color: var(--text-primary); margin-bottom: 0.75rem;">
+                Select distinct parameter combinations for <strong>Model A (Baseline)</strong> and <strong>Model B (Comparison)</strong> below. 
+              </p>
+              <p style="font-size: 0.8125rem; color: var(--text-muted); line-height: 1.5;">
+                Percentage deltas are computed relative to Model A baseline. Positive green percentages signify relative improvements, while amber tags highlight privacy penalties or capacity bottlenecks.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Comparator Section -->
+      <section class="section-wrapper" id="comparator-section">
+        <div class="section-header">
+          <span class="kicker-label">Parameter Specifications & Empirical Deltas</span>
+          <h2 class="section-title">Model A vs. Model B Head-to-Head</h2>
+          <p class="section-desc">Independent parameter sliders with real-time differential calculation.</p>
+        </div>
+
+        <div class="versus-container">
+          <!-- Config A Card -->
+          <div class="versus-card" id="config-a-card">
+            <div class="versus-header">
+              <span class="versus-tag a">Baseline / Model A</span>
+              <span class="slider-badge" id="badge-comp-summary-a">r=8 | No DP | α=100.0</span>
+            </div>
+
+            <!-- Discrete Sliders for Model A -->
+            <div class="comp-sliders-container">
+              <!-- Rank A -->
+              <div class="comp-slider-item">
+                <div class="slider-header-mini">
+                  <span class="slider-title-mini">LoRA Rank</span>
+                  <span class="slider-badge-mini" id="badge-comp-rank-a">r = 8</span>
+                </div>
+                <input type="range" class="stepped-range" id="slider-comp-rank-a" min="0" max="3" step="1" value="2">
+                <div class="slider-ticks-row">
+                  <span class="slider-tick-label" data-slider="comp-rank-a" data-val="0">r=2</span>
+                  <span class="slider-tick-label" data-slider="comp-rank-a" data-val="1">r=4</span>
+                  <span class="slider-tick-label active" data-slider="comp-rank-a" data-val="2">r=8</span>
+                  <span class="slider-tick-label" data-slider="comp-rank-a" data-val="3">r=16</span>
+                </div>
+              </div>
+
+              <!-- Epsilon A -->
+              <div class="comp-slider-item">
+                <div class="slider-header-mini">
+                  <span class="slider-title-mini">Privacy Budget</span>
+                  <span class="slider-badge-mini" id="badge-comp-eps-a">No DP</span>
+                </div>
+                <input type="range" class="stepped-range" id="slider-comp-eps-a" min="0" max="3" step="1" value="0">
+                <div class="slider-ticks-row">
+                  <span class="slider-tick-label active" data-slider="comp-eps-a" data-val="0">No DP</span>
+                  <span class="slider-tick-label" data-slider="comp-eps-a" data-val="1">ε=8.0</span>
+                  <span class="slider-tick-label" data-slider="comp-eps-a" data-val="2">ε=3.0</span>
+                  <span class="slider-tick-label" data-slider="comp-eps-a" data-val="3">ε=1.0</span>
+                </div>
+              </div>
+
+              <!-- Alpha A -->
+              <div class="comp-slider-item">
+                <div class="slider-header-mini">
+                  <span class="slider-title-mini">Heterogeneity</span>
+                  <span class="slider-badge-mini" id="badge-comp-alpha-a">α = 100.0</span>
+                </div>
+                <input type="range" class="stepped-range" id="slider-comp-alpha-a" min="0" max="2" step="1" value="2">
+                <div class="slider-ticks-row">
+                  <span class="slider-tick-label" data-slider="comp-alpha-a" data-val="0">0.1</span>
+                  <span class="slider-tick-label" data-slider="comp-alpha-a" data-val="1">1.0</span>
+                  <span class="slider-tick-label active" data-slider="comp-alpha-a" data-val="2">100.0</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="metric-comparison-list" id="metrics-list-a">
+              <!-- Populated dynamically -->
+            </div>
+          </div>
+
+          <!-- Config B Card -->
+          <div class="versus-card" id="config-b-card">
+            <div class="versus-header">
+              <span class="versus-tag b">Comparison / Model B</span>
+              <span class="slider-badge" id="badge-comp-summary-b">r=4 | ε=8.0 | α=0.1</span>
+            </div>
+
+            <!-- Discrete Sliders for Model B -->
+            <div class="comp-sliders-container">
+              <!-- Rank B -->
+              <div class="comp-slider-item">
+                <div class="slider-header-mini">
+                  <span class="slider-title-mini">LoRA Rank</span>
+                  <span class="slider-badge-mini" id="badge-comp-rank-b">r = 4</span>
+                </div>
+                <input type="range" class="stepped-range" id="slider-comp-rank-b" min="0" max="3" step="1" value="1">
+                <div class="slider-ticks-row">
+                  <span class="slider-tick-label" data-slider="comp-rank-b" data-val="0">r=2</span>
+                  <span class="slider-tick-label active" data-slider="comp-rank-b" data-val="1">r=4</span>
+                  <span class="slider-tick-label" data-slider="comp-rank-b" data-val="2">r=8</span>
+                  <span class="slider-tick-label" data-slider="comp-rank-b" data-val="3">r=16</span>
+                </div>
+              </div>
+
+              <!-- Epsilon B -->
+              <div class="comp-slider-item">
+                <div class="slider-header-mini">
+                  <span class="slider-title-mini">Privacy Budget</span>
+                  <span class="slider-badge-mini" id="badge-comp-eps-b">ε = 8.0</span>
+                </div>
+                <input type="range" class="stepped-range" id="slider-comp-eps-b" min="0" max="3" step="1" value="1">
+                <div class="slider-ticks-row">
+                  <span class="slider-tick-label" data-slider="comp-eps-b" data-val="0">No DP</span>
+                  <span class="slider-tick-label active" data-slider="comp-eps-b" data-val="1">ε=8.0</span>
+                  <span class="slider-tick-label" data-slider="comp-eps-b" data-val="2">ε=3.0</span>
+                  <span class="slider-tick-label" data-slider="comp-eps-b" data-val="3">ε=1.0</span>
+                </div>
+              </div>
+
+              <!-- Alpha B -->
+              <div class="comp-slider-item">
+                <div class="slider-header-mini">
+                  <span class="slider-title-mini">Heterogeneity</span>
+                  <span class="slider-badge-mini" id="badge-comp-alpha-b">α = 0.1</span>
+                </div>
+                <input type="range" class="stepped-range" id="slider-comp-alpha-b" min="0" max="2" step="1" value="0">
+                <div class="slider-ticks-row">
+                  <span class="slider-tick-label active" data-slider="comp-alpha-b" data-val="0">0.1</span>
+                  <span class="slider-tick-label" data-slider="comp-alpha-b" data-val="1">1.0</span>
+                  <span class="slider-tick-label" data-slider="comp-alpha-b" data-val="2">100.0</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="metric-comparison-list" id="metrics-list-b">
+              <!-- Populated dynamically with deltas -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Radar / Multi-Metric Bar Comparison Chart -->
+        <div class="chart-card" id="versus-radar-card" style="margin-top: 2rem;">
+          <div class="chart-header">
+            <div class="chart-title">Clinical Profile Overlay</div>
+            <div class="chart-desc">Macro F1, MCC, AUC-ROC, Accuracy, Precision, Recall</div>
+          </div>
+          <div class="chart-canvas-wrapper" style="height: 380px;">
+            <canvas id="versus-radar-chart"></canvas>
+          </div>
+        </div>
+      </section>
+    </main>
+
+  </div>
+
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Healthcare FL Benchmark - Parameter Tradeoffs</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700;9..144,900&family=Geist:wght@300;400;500;600;700&family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+  <div class="dashboard-container">
+    
+    <!-- Masthead & Navigation Bar -->
+    <header class="dashboard-header">
+      <div class="masthead-bar">
+        <span class="masthead-title">Federated Clinical Intelligence Benchmark // Empirical Lab</span>
+        <div class="masthead-meta">Module: <span>Empirical Parameter Sweep</span> &bull; Configurations: <span>48 Total Permutations</span></div>
+      </div>
+      <nav class="main-nav" aria-label="Main Navigation">
+        <a href="index.html" class="nav-tab-link">Hospital Silos</a>
+        <a href="cases.html" class="nav-tab-link">Clinical Simulator</a>
+        <a href="tradeoffs.html" class="nav-tab-link active">Parameter Tradeoffs</a>
+        <a href="comparator.html" class="nav-tab-link">Model Comparator</a>
+      </nav>
+    </header>
+
+    <main>
+      <!-- Hero Section with 12-Column Desktop Grid Asymmetry -->
+      <section class="section-wrapper" id="tradeoffs-hero-section">
+        <div class="editorial-grid-12">
+          <!-- 5 Columns: Left-aligned Display Heading & Sweep Methodology -->
+          <div class="col-editorial-5">
+            <span class="kicker-label">Parametric Sweep & Empirical Frontiers</span>
+            <h1 class="display-heading">Parameter Tradeoffs & Frontier Analysis</h1>
+            <p class="editorial-lead">
+              Systematic ablation of parameter capacity (r &in; {2, 4, 8, 16}), differential privacy noise (&epsilon; &in; {1.0, 3.0, 8.0, &infin;}), and Dirichlet partition skew (&alpha; &in; {0.1, 1.0, 100.0}).
+            </p>
+            <div class="editorial-meta-box">
+              <strong>Pareto Frontier:</strong> Identify optimal configurations balancing HIPAA/GDPR differential privacy guarantees against clinical diagnostic accuracy.
+            </div>
+          </div>
+
+          <!-- 7 Columns: Metric & Round View Calibration Controls -->
+          <div class="col-data-7">
+            <nav class="controls-bar" aria-label="Filters">
+              <div class="controls-group">
+                <span class="filter-label">Primary Metric:</span>
+                <select class="select-custom" id="metric-select">
+                  <option value="f1" selected>F1-Score (Primary Clinical Metric)</option>
+                  <option value="mcc">Matthews Correlation Coefficient (MCC)</option>
+                  <option value="auc_roc">AUC-ROC (Discriminative Ability)</option>
+                  <option value="accuracy">Accuracy</option>
+                  <option value="precision">Precision</option>
+                  <option value="recall">Recall</option>
+                  <option value="loss">Loss (Convergence)</option>
+                </select>
+              </div>
+
+              <div class="controls-group">
+                <span class="filter-label">Round View:</span>
+                <select class="select-custom" id="round-view-select">
+                  <option value="final" selected>Final Round (Converged Benchmark)</option>
+                  <option value="all">All Rounds</option>
+                </select>
+              </div>
+            </nav>
+          </div>
+        </div>
+      </section>
+
+      <!-- Heatmaps Section -->
+      <section class="section-wrapper" id="tradeoffs-section">
+        <div class="section-header">
+          <span class="kicker-label">Empirical Matrix</span>
+          <h2 class="section-title">2D Empirical Benchmark Heatmaps</h2>
+          <span class="section-desc" id="heatmap-metric-indicator">Metric: F1-Score</span>
+        </div>
+
+        <div class="heatmap-grid-container" id="heatmaps-container">
+          <!-- 3 Heatmap cards generated dynamically -->
+        </div>
+      </section>
+
+      <!-- Convergence Trajectories & Tradeoff Frontier -->
+      <section class="section-wrapper" id="trajectories-section">
+        <div class="section-header">
+          <span class="kicker-label">Convergence Dynamics</span>
+          <h2 class="section-title">Federation Rounds & Privacy Penalty Frontier</h2>
+          <p class="section-desc">Round-by-round trajectory under differential noise perturbation and capacity rank scaling.</p>
+        </div>
+
+        <div class="charts-grid-2col">
+          <div class="chart-card" id="convergence-chart-card">
+            <div class="chart-header">
+              <div class="chart-title">Round-by-Round Convergence Trajectory</div>
+              <div class="chart-desc" id="convergence-desc">Tracking validation progress across federation rounds</div>
+            </div>
+            <div class="chart-canvas-wrapper">
+              <canvas id="convergence-line-chart"></canvas>
+            </div>
+          </div>
+
+          <div class="chart-card" id="tradeoff-bar-card">
+            <div class="chart-header">
+              <div class="chart-title">LoRA Rank vs Privacy Impact Frontier</div>
+              <div class="chart-desc">Adaptation capacity vs differential privacy noise under non-IID data</div>
+            </div>
+            <div class="chart-canvas-wrapper">
+              <canvas id="tradeoff-bar-chart"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+  </div>
+
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
